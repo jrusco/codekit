@@ -1,24 +1,319 @@
-import './style.css'
-import typescriptLogo from './typescript.svg'
-import viteLogo from '/vite.svg'
-import { setupCounter } from './counter.ts'
+// Main application entry point - enterprise initialization pattern
 
-document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
-  <div>
-    <a href="https://vite.dev" target="_blank">
-      <img src="${viteLogo}" class="logo" alt="Vite logo" />
-    </a>
-    <a href="https://www.typescriptlang.org/" target="_blank">
-      <img src="${typescriptLogo}" class="logo vanilla" alt="TypeScript logo" />
-    </a>
-    <h1>Vite + TypeScript</h1>
-    <div class="card">
-      <button id="counter" type="button"></button>
-    </div>
-    <p class="read-the-docs">
-      Click on the Vite and TypeScript logos to learn more
-    </p>
-  </div>
-`
+import './styles/main.css';
+import { darkTheme, generateCSSCustomProperties } from './styles/theme';
+import { SplitPanel } from './ui/layout/SplitPanel';
+import { StatusBar } from './ui/components/StatusBar';
+import { initializeDefaultShortcuts } from './ui/components/KeyboardShortcuts';
+import { PerformanceMonitor } from '@/utils/performance';
 
-setupCounter(document.querySelector<HTMLButtonElement>('#counter')!)
+/**
+ * Main application class - similar to Spring Boot's @SpringBootApplication
+ */
+class CodeKitApplication {
+  private splitPanel!: SplitPanel;
+  private statusBar!: StatusBar;
+  private performanceMonitor = PerformanceMonitor.getInstance();
+
+  constructor() {
+    this.initializeTheme();
+    this.initializeLayout();
+    this.initializeComponents();
+    this.initializeKeyboardShortcuts();
+    this.setupPerformanceMonitoring();
+  }
+
+  /**
+   * Initialize theme system
+   */
+  private initializeTheme(): void {
+    const endTiming = this.performanceMonitor.startTiming('Application.initializeTheme');
+    
+    // Apply CSS custom properties to root
+    const root = document.documentElement;
+    const customProperties = generateCSSCustomProperties(darkTheme);
+    
+    Object.entries(customProperties).forEach(([property, value]) => {
+      root.style.setProperty(property, value);
+    });
+    
+    endTiming();
+  }
+
+  /**
+   * Initialize main application layout
+   */
+  private initializeLayout(): void {
+    const endTiming = this.performanceMonitor.startTiming('Application.initializeLayout');
+    
+    const appContainer = document.getElementById('app');
+    if (!appContainer) {
+      throw new Error('Application container not found');
+    }
+
+    // Create main application structure
+    appContainer.innerHTML = `
+      <div class="app">
+        <header class="app__header">
+          <div class="app__header-left">
+            <h1 style="margin: 0; font-size: var(--font-size-lg); color: var(--color-text-primary);">
+              CodeKit
+            </h1>
+          </div>
+          <div class="app__header-right">
+            <span style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">
+              Multi-Format Text Parser
+            </span>
+          </div>
+        </header>
+        <main class="app__main" id="main-content">
+          <!-- Split panel will be inserted here -->
+        </main>
+        <footer class="app__footer" id="status-container">
+          <!-- Status bar will be inserted here -->
+        </footer>
+      </div>
+    `;
+    
+    endTiming();
+  }
+
+  /**
+   * Initialize main UI components
+   */
+  private initializeComponents(): void {
+    const endTiming = this.performanceMonitor.startTiming('Application.initializeComponents');
+    
+    // Initialize split panel
+    const mainContent = document.getElementById('main-content');
+    if (!mainContent) {
+      throw new Error('Main content container not found');
+    }
+
+    this.splitPanel = new SplitPanel(mainContent, {
+      orientation: 'horizontal',
+      initialSplit: 50,
+      minSize: 200,
+      resizable: true,
+      collapsible: true
+    });
+
+    this.splitPanel.mount();
+
+    // Add placeholder content to panels
+    this.setupPanelContent();
+
+    // Initialize status bar
+    const statusContainer = document.getElementById('status-container');
+    if (!statusContainer) {
+      throw new Error('Status container not found');
+    }
+
+    this.statusBar = new StatusBar(statusContainer);
+    this.statusBar.setData({
+      format: 'JSON',
+      confidence: 0.95,
+      fileSize: 1024,
+      lineCount: 25,
+      characterCount: 1024,
+      parseTime: 15.5,
+      errors: 0,
+      warnings: 1
+    });
+    this.statusBar.mount();
+    
+    endTiming();
+  }
+
+  /**
+   * Setup placeholder content for split panels
+   */
+  private setupPanelContent(): void {
+    const leftPanel = this.splitPanel.getPrimaryPanel();
+    const rightPanel = this.splitPanel.getSecondaryPanel();
+
+    // Left panel - Input area placeholder
+    leftPanel.innerHTML = `
+      <div style="padding: var(--spacing-md); height: 100%; display: flex; flex-direction: column;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--spacing-md);">
+          <h2 style="margin: 0; font-size: var(--font-size-md); color: var(--color-text-primary);">
+            Input
+          </h2>
+          <div style="display: flex; gap: var(--spacing-sm);">
+            <button style="padding: var(--spacing-xs) var(--spacing-sm); background: var(--color-bg-tertiary); border: 1px solid var(--color-border-default); border-radius: var(--border-radius-sm); color: var(--color-text-primary); cursor: pointer;">
+              Clear
+            </button>
+            <button style="padding: var(--spacing-xs) var(--spacing-sm); background: var(--color-primary); border: none; border-radius: var(--border-radius-sm); color: var(--color-text-inverse); cursor: pointer;">
+              Parse
+            </button>
+          </div>
+        </div>
+        <textarea 
+          placeholder="Paste your JSON, CSV, XML, or other text data here..." 
+          style="
+            flex: 1; 
+            background: var(--color-bg-primary); 
+            border: 1px solid var(--color-border-default); 
+            border-radius: var(--border-radius-md); 
+            padding: var(--spacing-md); 
+            color: var(--color-text-primary); 
+            font-family: var(--font-family-mono); 
+            font-size: var(--font-size-sm);
+            resize: none;
+            outline: none;
+          "
+        ></textarea>
+      </div>
+    `;
+
+    // Right panel - Output area placeholder  
+    rightPanel.innerHTML = `
+      <div style="padding: var(--spacing-md); height: 100%; display: flex; flex-direction: column;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--spacing-md);">
+          <h2 style="margin: 0; font-size: var(--font-size-md); color: var(--color-text-primary);">
+            Output
+          </h2>
+          <div style="display: flex; gap: var(--spacing-sm);">
+            <button style="padding: var(--spacing-xs) var(--spacing-sm); background: var(--color-bg-tertiary); border: 1px solid var(--color-border-default); border-radius: var(--border-radius-sm); color: var(--color-text-primary); cursor: pointer;">
+              Text
+            </button>
+            <button style="padding: var(--spacing-xs) var(--spacing-sm); background: var(--color-interactive-tree); border: none; border-radius: var(--border-radius-sm); color: var(--color-text-inverse); cursor: pointer;">
+              Interactive
+            </button>
+          </div>
+        </div>
+        <div style="
+          flex: 1; 
+          background: var(--color-bg-primary); 
+          border: 1px solid var(--color-border-default); 
+          border-radius: var(--border-radius-md); 
+          padding: var(--spacing-md); 
+          font-family: var(--font-family-mono); 
+          font-size: var(--font-size-sm);
+          color: var(--color-text-secondary);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        ">
+          <div style="text-align: center;">
+            <div style="font-size: var(--font-size-lg); margin-bottom: var(--spacing-sm); color: var(--color-text-muted);">
+              ⚡
+            </div>
+            <div>Ready to parse your data</div>
+            <div style="font-size: var(--font-size-xs); margin-top: var(--spacing-xs); color: var(--color-text-muted);">
+              Supports JSON, CSV, XML and more
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Initialize keyboard shortcuts
+   */
+  private initializeKeyboardShortcuts(): void {
+    const endTiming = this.performanceMonitor.startTiming('Application.initializeKeyboardShortcuts');
+    
+    initializeDefaultShortcuts();
+    
+    endTiming();
+  }
+
+  /**
+   * Setup performance monitoring
+   */
+  private setupPerformanceMonitoring(): void {
+    // Log application startup metrics
+    const startupMetrics = this.performanceMonitor.getMetrics();
+    console.log('Application startup metrics:', startupMetrics);
+
+    // Setup periodic performance reporting (in development)
+    if (import.meta.env.DEV) {
+      setInterval(() => {
+        const metrics = this.performanceMonitor.getMetrics();
+        if (metrics.length > 0) {
+          console.group('Performance Metrics');
+          metrics.forEach(metric => {
+            if (metric.duration > 10) { // Only log operations > 10ms
+              console.log(`${metric.operation}: ${metric.duration.toFixed(2)}ms`);
+            }
+          });
+          console.groupEnd();
+          this.performanceMonitor.clearMetrics();
+        }
+      }, 30000); // Every 30 seconds
+    }
+  }
+
+  /**
+   * Get split panel instance for external access
+   */
+  public getSplitPanel(): SplitPanel {
+    return this.splitPanel;
+  }
+
+  /**
+   * Get status bar instance for external access
+   */
+  public getStatusBar(): StatusBar {
+    return this.statusBar;
+  }
+}
+
+// Initialize application when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+  const startupTiming = PerformanceMonitor.getInstance().startTiming('Application.startup');
+  
+  try {
+    const app = new CodeKitApplication();
+    
+    // Make app instance globally available for debugging
+    if (import.meta.env.DEV) {
+      (window as any).codeKitApp = app;
+    }
+    
+    console.log('✅ CodeKit application initialized successfully');
+    
+  } catch (error) {
+    console.error('❌ Failed to initialize CodeKit application:', error);
+    
+    // Show error message to user
+    const appContainer = document.getElementById('app');
+    if (appContainer) {
+      appContainer.innerHTML = `
+        <div style="
+          display: flex; 
+          align-items: center; 
+          justify-content: center; 
+          height: 100vh; 
+          background: #0d1117; 
+          color: #f85149;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        ">
+          <div style="text-align: center;">
+            <h1>Application Error</h1>
+            <p>Failed to initialize CodeKit. Please refresh the page.</p>
+            <details style="margin-top: 1rem;">
+              <summary>Error Details</summary>
+              <pre style="text-align: left; background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 4px;">
+                ${error instanceof Error ? error.stack : String(error)}
+              </pre>
+            </details>
+          </div>
+        </div>
+      `;
+    }
+  } finally {
+    startupTiming();
+  }
+});
+
+// Handle unhandled errors
+window.addEventListener('error', (event) => {
+  console.error('Unhandled error:', event.error);
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('Unhandled promise rejection:', event.reason);
+});
