@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create:*)",
+      "Bash(xcopy:*)",
+      "Bash(rmdir:*)",
+      "Bash(robocopy:*)",
+      "Bash(copy temp-vite\\*.* .)",
+      "Bash(cp:*)",
+      "Bash(rm:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)"
+    ],
+    "deny": []
+  }
+}
