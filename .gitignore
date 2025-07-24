@@ -140,3 +140,4 @@ vite.config.ts.timestamp-*
 
 # Claude
 .claude/settings.local.json
+.claude/notebook.md
