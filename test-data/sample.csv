@@ -1,0 +1,6 @@
+ID,Name,Department,Salary,Active,Join Date
+1,John Doe,Engineering,75000,true,2023-01-15
+2,Jane Smith,Marketing,65000,false,2023-02-20
+3,Bob Johnson,Sales,55000,true,2023-03-10
+4,Alice Brown,HR,60000,true,2023-04-05
+5,Charlie Wilson,Engineering,80000,true,2023-05-12

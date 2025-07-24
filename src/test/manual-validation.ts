@@ -241,7 +241,7 @@ tester.test('PerformanceOptimizer - Handle small content', async () => {
   const result = await optimizer.optimizedParse('small content', mockParser);
   
   tester.expect(result.isValid).toBe(true);
-  tester.expect(result.data.content).toBe('small content');
+  tester.expect(result.data?.content).toBe('small content');
 });
 
 tester.test('PerformanceOptimizer - Performance metrics', () => {

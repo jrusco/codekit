@@ -7,6 +7,7 @@ import { StatusBar } from './ui/components/StatusBar';
 import { initializeDefaultShortcuts } from './ui/components/KeyboardShortcuts';
 import { PerformanceMonitor } from '@/utils/performance';
 import { initializeFormatters } from './core/formatters/index.ts';
+import { parseManager } from './ui/components/ParseManager.ts';
 
 /**
  * Main application class - similar to Spring Boot's @SpringBootApplication
@@ -129,17 +130,23 @@ class CodeKitApplication {
     }
 
     this.statusBar = new StatusBar(statusContainer);
+    // Set initial status bar data
     this.statusBar.setData({
-      format: 'JSON',
-      confidence: 0.95,
-      fileSize: 1024,
-      lineCount: 25,
-      characterCount: 1024,
-      parseTime: 15.5,
+      format: 'READY',
+      confidence: 0,
+      fileSize: 0,
+      lineCount: 0,
+      characterCount: 0,
+      parseTime: 0,
       errors: 0,
-      warnings: 1
+      warnings: 0
     });
     this.statusBar.mount();
+
+    // Connect parse manager to status bar
+    parseManager.setStatusCallback((data) => {
+      this.statusBar.setData(data);
+    });
     
     endTiming();
   }
@@ -168,6 +175,7 @@ class CodeKitApplication {
           </div>
         </div>
         <textarea 
+          data-role="input"
           placeholder="Paste your JSON, CSV, XML, or other text data here..." 
           style="
             flex: 1; 
@@ -189,9 +197,12 @@ class CodeKitApplication {
     rightPanel.innerHTML = `
       <div style="padding: var(--spacing-md); height: 100%; display: flex; flex-direction: column;">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--spacing-md);">
-          <h2 style="margin: 0; font-size: var(--font-size-md); color: var(--color-text-primary);">
-            Output
-          </h2>
+          <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
+            <h2 style="margin: 0; font-size: var(--font-size-md); color: var(--color-text-primary);">
+              Output
+            </h2>
+            <span id="output-format-badge" style="display: none;"></span>
+          </div>
           <div style="display: flex; gap: var(--spacing-sm);">
             <button style="padding: var(--spacing-xs) var(--spacing-sm); background: var(--color-bg-tertiary); border: 1px solid var(--color-border-default); border-radius: var(--border-radius-sm); color: var(--color-text-primary); cursor: pointer;">
               Text
@@ -201,26 +212,32 @@ class CodeKitApplication {
             </button>
           </div>
         </div>
-        <div style="
+        <div data-role="output" style="
           flex: 1; 
           background: var(--color-bg-primary); 
           border: 1px solid var(--color-border-default); 
           border-radius: var(--border-radius-md); 
-          padding: var(--spacing-md); 
-          font-family: var(--font-family-mono); 
-          font-size: var(--font-size-sm);
-          color: var(--color-text-secondary);
+          overflow: hidden;
+          min-height: 0;
           display: flex;
-          align-items: center;
-          justify-content: center;
+          flex-direction: column;
         ">
-          <div style="text-align: center;">
-            <div style="font-size: var(--font-size-lg); margin-bottom: var(--spacing-sm); color: var(--color-text-muted);">
-              ⚡
-            </div>
-            <div>Ready to parse your data</div>
-            <div style="font-size: var(--font-size-xs); margin-top: var(--spacing-xs); color: var(--color-text-muted);">
-              Supports JSON, CSV, XML and more
+          <div style="
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-md);
+            color: var(--color-text-secondary);
+          ">
+            <div style="text-align: center;">
+              <div style="font-size: var(--font-size-lg); margin-bottom: var(--spacing-sm); color: var(--color-text-muted);">
+                ⚡
+              </div>
+              <div>Ready to parse your data</div>
+              <div style="font-size: var(--font-size-xs); margin-top: var(--spacing-xs); color: var(--color-text-muted);">
+                Supports JSON, CSV, XML and more
+              </div>
             </div>
           </div>
         </div>

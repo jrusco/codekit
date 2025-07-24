@@ -8,26 +8,57 @@ export { PerformanceOptimizer, performanceOptimizer } from './PerformanceOptimiz
 
 // Parsers
 export { JsonParser } from './JsonParser.ts';
+export { CsvParser } from './CsvParser.ts';
+export { XmlParser } from './XmlParser.ts';
 
 // Types (re-export for convenience)
-export type { FormatParser, ParseResult, ValidationError, DetectionResult } from '../../types/core.ts';
+export type { 
+  FormatParser, 
+  ParseResult, 
+  ValidationError, 
+  DetectionResult,
+  CsvData,
+  CsvRow,
+  CsvColumn,
+  CsvMetadata,
+  XmlDocument,
+  XmlNode,
+  XmlAttribute,
+  FormatParserConfig
+} from '../../types/core.ts';
 
 // Import required for initialization
 import { JsonParser } from './JsonParser.ts';
+import { CsvParser } from './CsvParser.ts';
+import { XmlParser } from './XmlParser.ts';
 import { formatRegistry } from './FormatRegistry.ts';
 import { formatDetector } from './FormatDetector.ts';
 import { performanceOptimizer } from './PerformanceOptimizer.ts';
 
 /**
- * Initialize the formatting system with default parsers
+ * Initialize the formatting system with all available parsers
  * Similar to Spring Boot's ComponentScan and auto-configuration
  */
 export function initializeFormatters(): void {
-  // Register JSON parser
+  // Register all format parsers
   const jsonParser = new JsonParser();
-  formatRegistry.register(jsonParser);
+  const csvParser = new CsvParser();
+  const xmlParser = new XmlParser();
   
-  console.debug('Formatting system initialized with parsers:', formatRegistry.getRegisteredFormats());
+  formatRegistry.register(jsonParser);
+  formatRegistry.register(csvParser);
+  formatRegistry.register(xmlParser);
+  
+  const registeredFormats = formatRegistry.getRegisteredFormats();
+  console.debug('Multi-format system initialized with parsers:', registeredFormats);
+  
+  // Log parser statistics for monitoring
+  const stats = formatRegistry.getStats();
+  console.debug('Format registry stats:', {
+    parsers: stats.registeredParsers,
+    extensions: stats.supportedExtensions,
+    mimeTypes: stats.supportedMimeTypes
+  });
 }
 
 /**

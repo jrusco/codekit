@@ -312,23 +312,47 @@ body {
   color: var(--color-text-inverse);
 }
 
-/* Scrollbars */
+/* Scrollbars - Force visible and prominent */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 14px;
+  height: 14px;
 }
 
 ::-webkit-scrollbar-track {
-  background-color: var(--color-bg-secondary);
+  background-color: var(--color-bg-tertiary);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-default);
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: var(--color-border-default);
-  border-radius: 4px;
+  background-color: var(--color-text-secondary);
+  border-radius: 8px;
+  border: 2px solid var(--color-bg-tertiary);
+  min-height: 40px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: var(--color-text-muted);
+  background-color: var(--color-text-primary);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background-color: var(--color-primary);
+}
+
+/* Firefox scrollbar styling - force visible */
+* {
+  scrollbar-width: auto;
+  scrollbar-color: var(--color-text-secondary) var(--color-bg-tertiary);
+}
+
+/* Force scrollbars to always be visible in output areas */
+[data-role="output"] * {
+  scrollbar-width: auto !important;
+}
+
+[data-role="output"] *::-webkit-scrollbar {
+  width: 14px !important;
+  height: 14px !important;
 }
 
 /* High contrast mode support */
