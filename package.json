@@ -10,6 +10,10 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
+    "test:playwright": "playwright test",
+    "test:playwright:ui": "playwright test --ui",
+    "test:playwright:debug": "playwright test --debug",
+    "test:all": "npm run test && npm run test:playwright",
     "type-check": "tsc --noEmit",
     "lint": "eslint src --ext .ts,.tsx",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
@@ -17,6 +21,7 @@
     "format:check": "prettier --check src/**/*.{ts,tsx,css,html}"
   },
   "devDependencies": {
+    "@playwright/test": "^1.54.1",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/user-event": "^14.6.1",
     "@typescript-eslint/eslint-plugin": "^8.38.0",

@@ -6,6 +6,7 @@ import { SplitPanel } from './ui/layout/SplitPanel';
 import { StatusBar } from './ui/components/StatusBar';
 import { initializeDefaultShortcuts } from './ui/components/KeyboardShortcuts';
 import { PerformanceMonitor } from '@/utils/performance';
+import { initializeFormatters } from './core/formatters/index.ts';
 
 /**
  * Main application class - similar to Spring Boot's @SpringBootApplication
@@ -16,11 +17,29 @@ class CodeKitApplication {
   private performanceMonitor = PerformanceMonitor.getInstance();
 
   constructor() {
+    this.initializeFormatters();
     this.initializeTheme();
     this.initializeLayout();
     this.initializeComponents();
     this.initializeKeyboardShortcuts();
     this.setupPerformanceMonitoring();
+  }
+
+  /**
+   * Initialize formatters system
+   */
+  private initializeFormatters(): void {
+    const endTiming = this.performanceMonitor.startTiming('Application.initializeFormatters');
+    
+    try {
+      initializeFormatters();
+      console.log('✅ Formatters initialized successfully');
+    } catch (error) {
+      console.error('❌ Failed to initialize formatters:', error);
+      throw error;
+    }
+    
+    endTiming();
   }
 
   /**
