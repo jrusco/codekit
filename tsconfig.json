@@ -13,6 +13,18 @@
     "moduleDetection": "force",
     "noEmit": true,
 
+    /* Path mapping for scalable architecture */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@/core/*": ["src/core/*"],
+      "@/formatters/*": ["src/core/formatters/*"],
+      "@/renderers/*": ["src/ui/renderers/*"],
+      "@/components/*": ["src/ui/components/*"],
+      "@/utils/*": ["src/utils/*"],
+      "@/types/*": ["src/types/*"]
+    },
+
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,
