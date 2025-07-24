@@ -1,6 +1,6 @@
 // Split panel layout component - enterprise responsive design
 
-import { BaseComponent } from '@/ui/components/BaseComponent';
+import { BaseComponent } from '../components/BaseComponent';
 // Split panel layout component - enterprise responsive design
 
 /**

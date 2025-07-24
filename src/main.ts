@@ -5,7 +5,7 @@ import { darkTheme, generateCSSCustomProperties } from './styles/theme';
 import { SplitPanel } from './ui/layout/SplitPanel';
 import { StatusBar } from './ui/components/StatusBar';
 import { initializeDefaultShortcuts } from './ui/components/KeyboardShortcuts';
-import { PerformanceMonitor } from '@/utils/performance';
+import { PerformanceMonitor } from './utils/performance';
 import { initializeFormatters } from './core/formatters/index.ts';
 import { parseManager } from './ui/components/ParseManager.ts';
 
