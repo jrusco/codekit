@@ -198,30 +198,61 @@ export class CsvParser implements FormatParser<CsvData> {
       const csvConfig = { ...this.defaultConfig, ...config?.csv };
       const validationErrors = this.validate(content, config);
       
-      if (validationErrors.length > 0 && validationErrors.some(e => e.severity === 'error')) {
-        return this.createFailedResult(validationErrors, startTime, fileSize);
+      // Always attempt to parse CSV data, even with validation errors
+      let parseResult: CsvData;
+      let isValid = true;
+      
+      try {
+        parseResult = this.parseWithConfig(content, csvConfig);
+      } catch (parseError) {
+        // If standard parsing fails, use best effort parsing
+        parseResult = this.parseWithBestEffort(content, csvConfig);
+        isValid = false;
+        
+        // Add parsing error to validation errors
+        const parseValidationError: ValidationError = {
+          message: `Parsing error: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`,
+          code: 'PARSE_ERROR',
+          severity: 'error'
+        };
+        validationErrors.push(parseValidationError);
       }
 
-      const parseResult = this.parseWithConfig(content, csvConfig);
       const parseTime = performance.now() - startTime;
       
       const metadata: ParseMetadata = {
         parseTime,
         fileSize,
         format: 'csv',
-        confidence: 100
+        confidence: isValid ? 100 : 50
       };
 
       return {
-        isValid: true,
+        isValid: isValid && !validationErrors.some(e => e.severity === 'error'),
         data: parseResult,
-        errors: validationErrors, // Include warnings
+        errors: validationErrors,
         metadata
       };
 
     } catch (error) {
+      // Last resort: create minimal table from raw content
+      const fallbackData = this.createFallbackTable(content);
       const errors = this.extractErrorDetails(error, content);
-      return this.createFailedResult(errors, startTime, fileSize);
+      const parseTime = performance.now() - startTime;
+      
+      const metadata: ParseMetadata = {
+        parseTime,
+        fileSize,
+        format: 'csv',
+        confidence: 10
+      };
+
+      return {
+        isValid: false,
+        data: fallbackData,
+        errors,
+        metadata
+      };
     }
   }
 
@@ -1265,5 +1296,228 @@ export class CsvParser implements FormatParser<CsvData> {
     });
     
     return errors;
+  }
+
+  /**
+   * Best effort parsing that always produces table data, even with malformed CSV
+   * Similar to HTML parsers that handle broken markup gracefully
+   */
+  private parseWithBestEffort(content: string, config: Required<NonNullable<FormatParserConfig['csv']>>): CsvData {
+    const lines = content.split(/\r?\n/).filter(line => line.trim());
+    if (lines.length === 0) {
+      return this.createEmptyTable();
+    }
+
+    // Use first line as header reference
+    const firstLine = lines[0];
+    const delimiterAnalysis = this.analyzeDelimiters(firstLine);
+    const delimiter = delimiterAnalysis.length > 0 ? delimiterAnalysis[0].delimiter : ',';
+    
+    // Parse first row to establish column structure
+    const headerRow = this.parseRowBestEffort(firstLine, delimiter);
+    const columnCount = headerRow.length;
+    
+    // Generate headers
+    const headers = config.hasHeaders 
+      ? headerRow.map(cell => cell || `Column ${headerRow.indexOf(cell) + 1}`)
+      : Array.from({ length: columnCount }, (_, i) => `Column ${i + 1}`);
+
+    // Parse data rows
+    const dataStartIndex = config.hasHeaders ? 1 : 0;
+    const rows: CsvRow[] = [];
+    
+    for (let i = dataStartIndex; i < lines.length; i++) {
+      const line = lines[i];
+      if (!line.trim()) continue;
+      
+      const rawCells = this.parseRowBestEffort(line, delimiter);
+      const cells: CsvCell[] = [];
+      
+      // Ensure all rows have the same number of columns
+      for (let j = 0; j < columnCount; j++) {
+        const rawValue = j < rawCells.length ? rawCells[j] : '';
+        const cell = this.createCellWithErrorHandling(rawValue, j, headers[j]);
+        cells.push(cell);
+      }
+      
+      rows.push({
+        index: i - dataStartIndex,
+        cells,
+        isValid: true, // Mark as valid for display purposes
+        errors: []
+      });
+    }
+
+    return {
+      headers,
+      rows,
+      columns: this.inferColumnTypes(headers, []),
+      metadata: {
+        delimiter,
+        hasHeaders: config.hasHeaders,
+        lineEnding: this.detectLineEnding(content),
+        rowCount: rows.length,
+        columnCount: headers.length,
+        encoding: 'UTF-8',
+        quoteChar: '"',
+        escapeChar: '"'
+      }
+    };
+  }
+
+  /**
+   * Parse a single row with best effort, handling malformed quotes and delimiters
+   */
+  private parseRowBestEffort(line: string, delimiter: string): string[] {
+    const cells: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    let i = 0;
+
+    while (i < line.length) {
+      const char = line[i];
+      
+      if (char === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          // Escaped quote
+          current += '"';
+          i += 2;
+        } else {
+          inQuotes = !inQuotes;
+          i++;
+        }
+      } else if (char === delimiter && !inQuotes) {
+        cells.push(current.trim());
+        current = '';
+        i++;
+      } else {
+        current += char;
+        i++;
+      }
+    }
+    
+    // Add the last cell
+    cells.push(current.trim());
+    
+    return cells;
+  }
+
+  /**
+   * Create a cell with error handling for malformed data
+   */
+  private createCellWithErrorHandling(rawValue: string, columnIndex: number, _columnName: string): CsvCell {
+    // Handle empty values
+    if (!rawValue || rawValue.trim() === '') {
+      return {
+        value: null,
+        type: 'null',
+        rawValue: rawValue,
+        columnIndex: columnIndex
+      };
+    }
+
+    // Handle unclosed quotes (basic cleanup)
+    let cleanValue = rawValue;
+    if (rawValue.startsWith('"') && !rawValue.endsWith('"')) {
+      cleanValue = rawValue.substring(1); // Remove leading quote
+    }
+
+    // Basic type inference - keep it simple for best effort parsing
+    let value: any = cleanValue;
+    let type: CsvCellType = 'string';
+    
+    // Try to parse as number
+    if (/^\d+$/.test(cleanValue)) {
+      value = parseInt(cleanValue, 10);
+      type = 'number';
+    } else if (/^\d*\.\d+$/.test(cleanValue)) {
+      value = parseFloat(cleanValue);
+      type = 'number';
+    } else if (/^(true|false)$/i.test(cleanValue)) {
+      value = cleanValue.toLowerCase() === 'true';
+      type = 'boolean';
+    }
+    
+    return {
+      value: value,
+      type: type,
+      rawValue: rawValue,
+      columnIndex: columnIndex
+    };
+  }
+
+  /**
+   * Create fallback table for completely unparseable content
+   */
+  private createFallbackTable(content: string): CsvData {
+    const lines = content.split(/\r?\n/).filter(line => line.trim());
+    if (lines.length === 0) {
+      return this.createEmptyTable();
+    }
+
+    // Create a single-column table with raw lines
+    const headers = ['Raw Content'];
+    const rows: CsvRow[] = lines.map((line, index) => ({
+      index: index,
+      cells: [{
+        value: line,
+        type: 'string',
+        rawValue: line,
+        columnIndex: 0
+      }],
+      isValid: false,
+      errors: ['Unable to parse as CSV - displayed as raw content']
+    }));
+
+    return {
+      headers,
+      rows,
+      columns: [{
+        name: 'Raw Content',
+        index: 0,
+        inferredType: 'string',
+        typeConfidence: 100,
+        nullable: false,
+        samples: lines.slice(0, 5)
+      }],
+      metadata: {
+        delimiter: ',',
+        hasHeaders: false,
+        lineEnding: '\n',
+        rowCount: rows.length,
+        columnCount: 1,
+        encoding: 'UTF-8',
+        quoteChar: '"',
+        escapeChar: '"'
+      }
+    };
+  }
+
+  /**
+   * Create empty table structure
+   */
+  private createEmptyTable(): CsvData {
+    return {
+      headers: ['Column 1'],
+      rows: [],
+      columns: [{
+        name: 'Column 1',
+        index: 0,
+        inferredType: 'string',
+        typeConfidence: 100,
+        nullable: false,
+        samples: []
+      }],
+      metadata: {
+        delimiter: ',',
+        hasHeaders: false,
+        lineEnding: '\n',
+        rowCount: 0,
+        columnCount: 1,
+        encoding: 'UTF-8',
+        quoteChar: '"',
+        escapeChar: '"'
+      }
+    };
   }
 }

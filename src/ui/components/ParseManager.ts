@@ -114,7 +114,11 @@ export class ParseManager {
         const parser = formatRegistry.getParser(this.currentDetection.format);
         if (parser) {
           this.currentResult = parser.parse(content);
-          if (this.currentResult.isValid) {
+          
+          // For CSV format, always try to display as table even with validation errors
+          if (this.currentDetection.format === 'csv' && this.currentResult.data) {
+            this.displayResult();
+          } else if (this.currentResult.isValid) {
             this.displayResult();
           } else {
             // Parsing failed - show raw input as fallback
@@ -190,7 +194,7 @@ export class ParseManager {
           line-height: 1.4;
         ">${this.generateJsonTreeView(this.currentResult.data)}</pre>`;
       case 'csv':
-        return this.generateCsvTableView(this.currentResult.data);
+        return this.generateCsvTableView(this.currentResult.data, this.currentResult.errors);
       case 'xml':
         return this.generateXmlTreeView(this.currentResult.data);
       default:
@@ -237,22 +241,61 @@ export class ParseManager {
   /**
    * Generate CSV table view
    */
-  private generateCsvTableView(data: any): string {
+  private generateCsvTableView(data: any, validationErrors: ValidationError[] = []): string {
     if (!data.headers || !data.rows) {
       return '<div style="padding: var(--spacing-md); color: var(--color-text-muted);">Invalid CSV data structure</div>';
     }
+
+    // Create error lookup map by line number (1-based indexing)
+    const errorsByLine = new Map<number, ValidationError[]>();
+    validationErrors.forEach(error => {
+      if (error.line !== undefined) {
+        if (!errorsByLine.has(error.line)) {
+          errorsByLine.set(error.line, []);
+        }
+        errorsByLine.get(error.line)!.push(error);
+      }
+    });
+
+    // Helper function to get highest severity for a line
+    const getRowSeverityClass = (lineNumber: number): string => {
+      const errors = errorsByLine.get(lineNumber);
+      if (!errors || errors.length === 0) return '';
+      
+      // Priority: error > warning > info
+      if (errors.some(e => e.severity === 'error')) return 'csv-table__row--error';
+      if (errors.some(e => e.severity === 'warning')) return 'csv-table__row--warning';
+      if (errors.some(e => e.severity === 'info')) return 'csv-table__row--info';
+      return '';
+    };
 
     const headerRow = data.headers.map((header: string) => 
       `<th style="padding: var(--spacing-xs) var(--spacing-sm); background: var(--color-bg-primary); border: 1px solid var(--color-border-default); text-align: left; font-weight: 500;">${header}</th>`
     ).join('');
 
-    const dataRows = data.rows.slice(0, 100).map((row: any) => {
-      const cells = row.cells.map((cell: any) => {
+    const dataRows = data.rows.slice(0, 100).map((row: any, index: number) => {
+      // CSV line numbers are 1-based, and row 0 is headers, so data rows start at line 2
+      const lineNumber = index + 2;
+      const severityClass = getRowSeverityClass(lineNumber);
+      const classAttr = severityClass ? ` class="${severityClass}"` : '';
+      
+      const cells = row.cells.map((cell: any, cellIndex: number) => {
         const value = cell.value === null ? '<em style="color: var(--color-text-muted);">null</em>' : String(cell.value);
         const typeColor = this.getCellTypeColor(cell.type);
-        return `<td style="padding: var(--spacing-xs) var(--spacing-sm); border: 1px solid var(--color-border-default); color: ${typeColor};">${value}</td>`;
+        
+        // Determine cell-level error highlighting
+        let cellClass = '';
+        if (cell.isValid === false) {
+          cellClass = ' csv-table__cell--error';
+        } else if (cell.rawValue && cell.rawValue !== String(cell.value)) {
+          // Value was transformed/cleaned, might indicate a warning
+          cellClass = ' csv-table__cell--warning';
+        }
+        
+        const classAttr = cellClass ? ` class="${cellClass.trim()}"` : '';
+        return `<td${classAttr} style="padding: var(--spacing-xs) var(--spacing-sm); border: 1px solid var(--color-border-default); color: ${typeColor};">${value}</td>`;
       }).join('');
-      return `<tr>${cells}</tr>`;
+      return `<tr${classAttr}>${cells}</tr>`;
     }).join('');
 
     const truncationNote = data.rows.length > 100 ? 
