@@ -190,6 +190,30 @@ export interface XmlDocument {
 // === Enhanced Format Parser Types ===
 
 /**
+ * CSV validation configuration for comprehensive linting
+ * Similar to Spring Boot's @ConfigurationProperties pattern
+ */
+export interface CsvValidationConfig {
+  readonly enableDataQualityChecks: boolean;
+  readonly enableSecurityValidation: boolean;
+  readonly enablePerformanceWarnings: boolean;
+  readonly enableEncodingValidation: boolean;
+  readonly enableHeaderValidation: boolean;
+  readonly maxFileSize: number; // in bytes
+  readonly maxRowCount: number;
+  readonly maxColumnCount: number;
+  readonly checkCsvInjection: boolean;
+  readonly validateDataTypes: boolean;
+  readonly strictDelimiterConsistency: boolean;
+  readonly warnOnMixedLineEndings: boolean;
+}
+
+/**
+ * CSV validation profiles for different use cases
+ */
+export type CsvValidationProfile = 'strict' | 'lenient' | 'security-focused' | 'performance-focused' | 'custom';
+
+/**
  * Format-specific parser configuration
  */
 export interface FormatParserConfig {
@@ -199,6 +223,7 @@ export interface FormatParserConfig {
     quoteChar?: string;
     escapeChar?: string;
     skipEmptyLines?: boolean;
+    validation?: Partial<CsvValidationConfig>;
   };
   readonly xml?: {
     preserveWhitespace?: boolean;

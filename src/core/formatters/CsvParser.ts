@@ -11,7 +11,9 @@ import type {
   CsvColumn,
   CsvMetadata,
   CsvCellType,
-  FormatParserConfig
+  FormatParserConfig,
+  CsvValidationConfig,
+  CsvValidationProfile
 } from '../../types/core.ts';
 
 /**
@@ -23,12 +25,97 @@ export class CsvParser implements FormatParser<CsvData> {
   readonly extensions = ['csv', 'tsv', 'txt'] as const;
   readonly mimeTypes = ['text/csv', 'application/csv', 'text/tab-separated-values'] as const;
 
+  /**
+   * Default validation configurations for different profiles
+   * Similar to Spring's @Profile annotation system
+   */
+  private readonly validationProfiles: Record<CsvValidationProfile, CsvValidationConfig> = {
+    strict: {
+      enableDataQualityChecks: true,
+      enableSecurityValidation: true,
+      enablePerformanceWarnings: true,
+      enableEncodingValidation: true,
+      enableHeaderValidation: true,
+      maxFileSize: 5 * 1024 * 1024, // 5MB
+      maxRowCount: 50000,
+      maxColumnCount: 1000,
+      checkCsvInjection: true,
+      validateDataTypes: true,
+      strictDelimiterConsistency: true,
+      warnOnMixedLineEndings: true
+    },
+    lenient: {
+      enableDataQualityChecks: false,
+      enableSecurityValidation: true,
+      enablePerformanceWarnings: true,
+      enableEncodingValidation: false,
+      enableHeaderValidation: false,
+      maxFileSize: 50 * 1024 * 1024, // 50MB
+      maxRowCount: 500000,
+      maxColumnCount: 10000,
+      checkCsvInjection: true,
+      validateDataTypes: false,
+      strictDelimiterConsistency: false,
+      warnOnMixedLineEndings: false
+    },
+    'security-focused': {
+      enableDataQualityChecks: true,
+      enableSecurityValidation: true,
+      enablePerformanceWarnings: false,
+      enableEncodingValidation: true,
+      enableHeaderValidation: true,
+      maxFileSize: 10 * 1024 * 1024, // 10MB
+      maxRowCount: 100000,
+      maxColumnCount: 500,
+      checkCsvInjection: true,
+      validateDataTypes: true,
+      strictDelimiterConsistency: true,
+      warnOnMixedLineEndings: true
+    },
+    'performance-focused': {
+      enableDataQualityChecks: false,
+      enableSecurityValidation: false,
+      enablePerformanceWarnings: true,
+      enableEncodingValidation: false,
+      enableHeaderValidation: false,
+      maxFileSize: 100 * 1024 * 1024, // 100MB
+      maxRowCount: 1000000,
+      maxColumnCount: 50000,
+      checkCsvInjection: false,
+      validateDataTypes: false,
+      strictDelimiterConsistency: false,
+      warnOnMixedLineEndings: false
+    },
+    custom: {
+      enableDataQualityChecks: true,
+      enableSecurityValidation: true,
+      enablePerformanceWarnings: true,
+      enableEncodingValidation: true,
+      enableHeaderValidation: true,
+      maxFileSize: 10 * 1024 * 1024, // 10MB
+      maxRowCount: 100000,
+      maxColumnCount: 2000,
+      checkCsvInjection: true,
+      validateDataTypes: true,
+      strictDelimiterConsistency: false,
+      warnOnMixedLineEndings: true
+    }
+  };
+
+  /**
+   * Get default validation configuration for a profile
+   */
+  private getDefaultValidationConfig(profile: CsvValidationProfile): CsvValidationConfig {
+    return this.validationProfiles[profile];
+  }
+
   private readonly defaultConfig: Required<NonNullable<FormatParserConfig['csv']>> = {
     delimiter: ',',
     hasHeaders: true,
     quoteChar: '"',
     escapeChar: '"',
-    skipEmptyLines: true
+    skipEmptyLines: true,
+    validation: this.getDefaultValidationConfig('custom')
   };
 
   /**
@@ -109,7 +196,7 @@ export class CsvParser implements FormatParser<CsvData> {
     
     try {
       const csvConfig = { ...this.defaultConfig, ...config?.csv };
-      const validationErrors = this.validate(content);
+      const validationErrors = this.validate(content, config);
       
       if (validationErrors.length > 0 && validationErrors.some(e => e.severity === 'error')) {
         return this.createFailedResult(validationErrors, startTime, fileSize);
@@ -139,12 +226,19 @@ export class CsvParser implements FormatParser<CsvData> {
   }
 
   /**
-   * Validate CSV structure and detect potential issues
+   * Comprehensive CSV validation with enhanced linting rules
+   * Similar to Bean Validation pattern with detailed error reporting
    */
-  validate(content: string): ValidationError[] {
+  validate(content: string, config?: FormatParserConfig): ValidationError[] {
+    const startTime = performance.now();
     const errors: ValidationError[] = [];
     const trimmed = content.trim();
+    
+    // Get validation configuration
+    const csvConfig = { ...this.defaultConfig, ...config?.csv };
+    const validationConfig = { ...this.defaultConfig.validation, ...csvConfig.validation };
 
+    // Basic empty content check
     if (!trimmed) {
       errors.push({
         message: 'Content is empty',
@@ -154,45 +248,67 @@ export class CsvParser implements FormatParser<CsvData> {
       return errors;
     }
 
-    const lines = trimmed.split(/\r?\n/);
-    
-    // Check for minimum viable CSV (at least one line with delimiter)
-    const detection = this.detect(content);
-    if (detection.confidence < 30) {
-      errors.push({
-        message: 'Content does not appear to be valid CSV format',
-        code: 'INVALID_CSV_FORMAT',
-        severity: 'error'
-      });
+    // Ensure we have all required properties with defaults
+    const completeValidationConfig: CsvValidationConfig = {
+      enableDataQualityChecks: validationConfig.enableDataQualityChecks ?? true,
+      enableSecurityValidation: validationConfig.enableSecurityValidation ?? true,
+      enablePerformanceWarnings: validationConfig.enablePerformanceWarnings ?? true,
+      enableEncodingValidation: validationConfig.enableEncodingValidation ?? true,
+      enableHeaderValidation: validationConfig.enableHeaderValidation ?? true,
+      maxFileSize: validationConfig.maxFileSize ?? 10 * 1024 * 1024,
+      maxRowCount: validationConfig.maxRowCount ?? 100000,
+      maxColumnCount: validationConfig.maxColumnCount ?? 2000,
+      checkCsvInjection: validationConfig.checkCsvInjection ?? true,
+      validateDataTypes: validationConfig.validateDataTypes ?? true,
+      strictDelimiterConsistency: validationConfig.strictDelimiterConsistency ?? false,
+      warnOnMixedLineEndings: validationConfig.warnOnMixedLineEndings ?? true
+    };
+
+    // Performance validation
+    if (completeValidationConfig.enablePerformanceWarnings) {
+      const performanceErrors = this.validatePerformance(content, completeValidationConfig);
+      errors.push(...performanceErrors);
     }
 
-    // Analyze delimiter consistency
-    const delimiterAnalysis = this.analyzeDelimiters(content);
-    const bestDelimiter = delimiterAnalysis.reduce((best, current) => 
-      current.confidence > best.confidence ? current : best
-    );
-
-    if (bestDelimiter.confidence < 50) {
-      errors.push({
-        message: 'Unable to reliably detect CSV delimiter',
-        code: 'DELIMITER_DETECTION_FAILED',
-        severity: 'warning'
-      });
+    // Security validation
+    if (completeValidationConfig.enableSecurityValidation) {
+      const securityErrors = this.validateSecurity(content, completeValidationConfig);
+      errors.push(...securityErrors);
     }
 
-    // Check for row consistency issues
-    const consistencyScore = this.analyzeRowConsistency(lines, bestDelimiter.delimiter);
-    if (consistencyScore < 0.8) {
-      errors.push({
-        message: `Inconsistent row structure detected (${Math.round(consistencyScore * 100)}% consistent)`,
-        code: 'INCONSISTENT_ROWS',
-        severity: 'warning'
-      });
+    // Encoding validation
+    if (completeValidationConfig.enableEncodingValidation) {
+      const encodingErrors = this.validateEncoding(content);
+      errors.push(...encodingErrors);
     }
 
-    // Check for unterminated quotes
-    const quoteErrors = this.validateQuotes(content, '"');
-    errors.push(...quoteErrors);
+    // Core structural validation
+    const structuralErrors = this.validateStructure(content, completeValidationConfig);
+    errors.push(...structuralErrors);
+
+    // Data quality validation (only if structure is valid)
+    if (completeValidationConfig.enableDataQualityChecks && 
+        !errors.some(e => e.severity === 'error' && (e.code === 'INVALID_CSV_FORMAT' || e.code === 'DELIMITER_DETECTION_FAILED'))) {
+      
+      const qualityErrors = this.validateDataQuality(content, completeValidationConfig);
+      errors.push(...qualityErrors);
+    }
+
+    // Header validation
+    if (completeValidationConfig.enableHeaderValidation) {
+      const headerErrors = this.validateHeaders(content, completeValidationConfig);
+      errors.push(...headerErrors);
+    }
+
+    // Add performance metadata
+    const validationTime = performance.now() - startTime;
+    if (validationTime > 200 && completeValidationConfig.enablePerformanceWarnings) {
+      errors.push({
+        message: `Validation took ${validationTime.toFixed(1)}ms - consider using a simpler validation profile for large files`,
+        code: 'SLOW_VALIDATION',
+        severity: 'info'
+      });
+    }
 
     return errors;
   }
@@ -721,5 +837,433 @@ export class CsvParser implements FormatParser<CsvData> {
       errors,
       metadata
     };
+  }
+
+  // === Enhanced Validation Methods ===
+
+  /**
+   * Validate performance characteristics and warn about potential issues
+   */
+  private validatePerformance(content: string, config: CsvValidationConfig): ValidationError[] {
+    const errors: ValidationError[] = [];
+    const fileSize = new Blob([content]).size;
+    const lines = content.split(/\r?\n/);
+    
+    // File size validation
+    if (fileSize > config.maxFileSize) {
+      const sizeMB = (fileSize / 1024 / 1024).toFixed(1);
+      const maxSizeMB = (config.maxFileSize / 1024 / 1024).toFixed(1);
+      errors.push({
+        message: `File size (${sizeMB}MB) exceeds recommended limit (${maxSizeMB}MB) - parsing may be slow`,
+        code: 'FILE_SIZE_WARNING',
+        severity: 'warning'
+      });
+    } else if (fileSize > config.maxFileSize * 0.7) {
+      const sizeMB = (fileSize / 1024 / 1024).toFixed(1);
+      errors.push({
+        message: `Large file detected (${sizeMB}MB) - monitor performance during parsing`,
+        code: 'LARGE_FILE_INFO',
+        severity: 'info'
+      });
+    }
+    
+    // Row count validation
+    if (lines.length > config.maxRowCount) {
+      errors.push({
+        message: `Row count (${lines.length.toLocaleString()}) exceeds recommended limit (${config.maxRowCount.toLocaleString()}) - consider data pagination`,
+        code: 'HIGH_ROW_COUNT',
+        severity: 'warning'
+      });
+    }
+    
+    // Memory usage estimation
+    const estimatedMemoryMB = (fileSize * 3) / 1024 / 1024; // Rough estimate: 3x file size in memory
+    if (estimatedMemoryMB > 100) {
+      errors.push({
+        message: `Estimated memory usage (${estimatedMemoryMB.toFixed(1)}MB) may cause performance issues`,
+        code: 'HIGH_MEMORY_USAGE',
+        severity: 'warning'
+      });
+    }
+    
+    return errors;
+  }
+
+  /**
+   * Validate security aspects - detect CSV injection and suspicious patterns
+   */
+  private validateSecurity(content: string, config: CsvValidationConfig): ValidationError[] {
+    const errors: ValidationError[] = [];
+    
+    if (!config.checkCsvInjection) {
+      return errors;
+    }
+    
+    const lines = content.split(/\r?\n/);
+    
+    // CSV Injection detection - formulas that could execute in spreadsheet applications
+    const injectionPatterns = [
+      { pattern: /^[\s]*=/, name: 'Formula injection (=)', severity: 'error' as const },
+      { pattern: /^[\s]*\+/, name: 'Formula injection (+)', severity: 'warning' as const },
+      { pattern: /^[\s]*-/, name: 'Formula injection (-)', severity: 'warning' as const },
+      { pattern: /^[\s]*@/, name: 'Formula injection (@)', severity: 'warning' as const },
+      { pattern: /=\s*(CMD|SYSTEM|EXEC|SHELL)/i, name: 'Command execution attempt', severity: 'error' as const },
+      { pattern: /=\s*(HYPERLINK|IMPORTDATA|IMPORTFEED|IMPORTHTML|IMPORTRANGE|IMPORTXML)/i, name: 'Data import function', severity: 'error' as const }
+    ];
+    
+    for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+      const line = lines[lineIndex];
+      
+      // Check each field in the line
+      const fields = this.parseRow(line, ',', '"', '"', lineIndex);
+      
+      for (let fieldIndex = 0; fieldIndex < fields.length; fieldIndex++) {
+        const field = fields[fieldIndex].trim();
+        
+        if (field.length === 0) continue;
+        
+        for (const { pattern, name, severity } of injectionPatterns) {
+          if (pattern.test(field)) {
+            errors.push({
+              message: `Potential CSV injection detected: ${name} in "${field.substring(0, 50)}${field.length > 50 ? '...' : ''}"`,
+              line: lineIndex + 1,
+              column: fieldIndex + 1,
+              code: 'CSV_INJECTION',
+              severity
+            });
+          }
+        }
+        
+        // Check for suspiciously long fields that might indicate malicious content
+        if (field.length > 10000) {
+          errors.push({
+            message: `Extremely long field (${field.length} characters) detected - potential DoS attempt`,
+            line: lineIndex + 1,
+            column: fieldIndex + 1,
+            code: 'SUSPICIOUS_FIELD_LENGTH',
+            severity: 'warning'
+          });
+        }
+      }
+    }
+    
+    // Check for repeated suspicious patterns
+    const suspiciousFieldCount = errors.filter(e => e.code === 'CSV_INJECTION').length;
+    if (suspiciousFieldCount > 10) {
+      errors.push({
+        message: `High number of potential injection attempts (${suspiciousFieldCount}) - file may be malicious`,
+        code: 'MULTIPLE_INJECTION_ATTEMPTS',
+        severity: 'error'
+      });
+    }
+    
+    return errors;
+  }
+
+  /**
+   * Validate encoding and character set issues
+   */
+  private validateEncoding(content: string): ValidationError[] {
+    const errors: ValidationError[] = [];
+    
+    // Check for BOM (Byte Order Mark)
+    if (content.charCodeAt(0) === 0xFEFF) {
+      errors.push({
+        message: 'UTF-8 BOM detected - may cause parsing issues in some applications',
+        code: 'BOM_DETECTED',
+        severity: 'info'
+      });
+    }
+    
+    // Check for mixed line endings
+    const hasLF = content.includes('\n');
+    const hasCRLF = content.includes('\r\n');
+    const hasCR = content.includes('\r') && !content.includes('\r\n');
+    
+    const lineEndingTypes = [hasLF, hasCRLF, hasCR].filter(Boolean).length;
+    if (lineEndingTypes > 1) {
+      errors.push({
+        message: 'Mixed line endings detected (\\n, \\r\\n, \\r) - may cause parsing inconsistencies',
+        code: 'MIXED_LINE_ENDINGS',
+        severity: 'warning'
+      });
+    }
+    
+    // Check for control characters that might indicate encoding issues
+    const controlCharPattern = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/;
+    if (controlCharPattern.test(content)) {
+      errors.push({
+        message: 'Control characters detected - possible encoding issue or binary data',
+        code: 'CONTROL_CHARACTERS',
+        severity: 'warning'
+      });
+    }
+    
+    // Check for replacement characters (often indicates encoding problems)
+    if (content.includes('\uFFFD')) {
+      errors.push({
+        message: 'Unicode replacement characters found - file may have encoding issues',
+        code: 'ENCODING_ISSUES',
+        severity: 'error'
+      });
+    }
+    
+    return errors;
+  }
+
+  /**
+   * Validate core CSV structure
+   */
+  private validateStructure(content: string, config: CsvValidationConfig): ValidationError[] {
+    const errors: ValidationError[] = [];
+    const lines = content.split(/\r?\n/);
+    
+    // Check for minimum viable CSV (at least one line with delimiter)
+    const detection = this.detect(content);
+    if (detection.confidence < 30) {
+      errors.push({
+        message: 'Content does not appear to be valid CSV format',
+        code: 'INVALID_CSV_FORMAT',
+        severity: 'error'
+      });
+      return errors; // No point in further validation if not CSV
+    }
+
+    // Analyze delimiter consistency
+    const delimiterAnalysis = this.analyzeDelimiters(content);
+    const bestDelimiter = delimiterAnalysis.reduce((best, current) => 
+      current.confidence > best.confidence ? current : best
+    );
+
+    if (bestDelimiter.confidence < 50) {
+      errors.push({
+        message: 'Unable to reliably detect CSV delimiter - consider specifying delimiter explicitly',
+        code: 'DELIMITER_DETECTION_FAILED',
+        severity: 'warning'
+      });
+    }
+
+    // Strict delimiter consistency check
+    if (config.strictDelimiterConsistency) {
+      const consistencyScore = this.analyzeRowConsistency(lines, bestDelimiter.delimiter);
+      if (consistencyScore < 0.9) {
+        errors.push({
+          message: `Strict mode: Row structure consistency (${Math.round(consistencyScore * 100)}%) below 90% threshold`,
+          code: 'STRICT_CONSISTENCY_VIOLATION',
+          severity: 'error'
+        });
+      }
+    } else {
+      // Lenient consistency check
+      const consistencyScore = this.analyzeRowConsistency(lines, bestDelimiter.delimiter);
+      if (consistencyScore < 0.7) {
+        errors.push({
+          message: `Inconsistent row structure detected (${Math.round(consistencyScore * 100)}% consistent) - some rows have different numbers of fields`,
+          code: 'INCONSISTENT_ROWS',
+          severity: 'warning'
+        });
+      }
+    }
+
+    // Check for unterminated quotes
+    const quoteErrors = this.validateQuotes(content, '"');
+    errors.push(...quoteErrors);
+
+    // Column count validation
+    if (lines.length > 0) {
+      const firstRowColumns = this.parseRow(lines[0], bestDelimiter.delimiter, '"', '"', 0).length;
+      if (firstRowColumns > config.maxColumnCount) {
+        errors.push({
+          message: `Column count (${firstRowColumns}) exceeds recommended limit (${config.maxColumnCount})`,
+          code: 'HIGH_COLUMN_COUNT',
+          severity: 'warning'
+        });
+      }
+    }
+    
+    return errors;
+  }
+
+  /**
+   * Validate data quality and consistency
+   */
+  private validateDataQuality(content: string, config: CsvValidationConfig): ValidationError[] {
+    const errors: ValidationError[] = [];
+    
+    if (!config.validateDataTypes) {
+      return errors;
+    }
+    
+    try {
+      // Parse a sample to analyze data quality
+      const sampleLines = content.split(/\r?\n/).slice(0, 100); // Sample first 100 lines
+      const sampleContent = sampleLines.join('\n');
+      
+      const delimiterAnalysis = this.analyzeDelimiters(sampleContent);
+      const bestDelimiter = delimiterAnalysis.reduce((best, current) => 
+        current.confidence > best.confidence ? current : best
+      );
+      
+      const rows = sampleLines.map((line, index) => 
+        this.parseRow(line, bestDelimiter.delimiter, '"', '"', index)
+      ).filter(row => row.some(cell => cell.trim().length > 0)); // Filter empty rows
+      
+      if (rows.length < 2) {
+        return errors; // Need at least 2 rows for quality analysis
+      }
+      
+      const headers = rows[0];
+      const dataRows = rows.slice(1);
+      
+      // Analyze each column for data quality issues
+      for (let colIndex = 0; colIndex < headers.length; colIndex++) {
+        const columnName = headers[colIndex] || `Column ${colIndex + 1}`;
+        const columnValues = dataRows.map(row => row[colIndex] || '').filter(val => val.trim().length > 0);
+        
+        if (columnValues.length === 0) continue;
+        
+        // Type consistency analysis
+        const typeAnalysis = this.analyzeColumnType(columnValues);
+        
+        if (typeAnalysis.confidence < 0.7 && columnValues.length > 5) {
+          errors.push({
+            message: `Column "${columnName}" has mixed data types (${Math.round(typeAnalysis.confidence * 100)}% consistency) - consider data cleaning`,
+            code: 'MIXED_DATA_TYPES',
+            severity: 'info'
+          });
+        }
+        
+        // Check for common data quality issues
+        const nullCount = columnValues.filter(val => 
+          !val.trim() || val.toLowerCase() === 'null' || val.toLowerCase() === 'na'
+        ).length;
+        
+        const nullPercentage = (nullCount / columnValues.length) * 100;
+        if (nullPercentage > 50) {
+          errors.push({
+            message: `Column "${columnName}" has high null rate (${Math.round(nullPercentage)}%) - consider if this column is needed`,
+            code: 'HIGH_NULL_RATE',
+            severity: 'info'
+          });
+        }
+        
+        // Check for duplicate values in what should be unique columns (heuristic)
+        if (columnName.toLowerCase().includes('id') || columnName.toLowerCase().includes('key')) {
+          const uniqueValues = new Set(columnValues);
+          const duplicateRate = 1 - (uniqueValues.size / columnValues.length);
+          
+          if (duplicateRate > 0.1) {
+            errors.push({
+              message: `Column "${columnName}" appears to be an identifier but has ${Math.round(duplicateRate * 100)}% duplicates`,
+              code: 'DUPLICATE_IDENTIFIERS',
+              severity: 'warning'
+            });
+          }
+        }
+      }
+      
+    } catch (error) {
+      // Data quality analysis failed - not critical
+      errors.push({
+        message: 'Unable to perform data quality analysis due to parsing issues',
+        code: 'QUALITY_ANALYSIS_FAILED',
+        severity: 'info'
+      });
+    }
+    
+    return errors;
+  }
+
+  /**
+   * Validate CSV headers for common issues
+   */
+  private validateHeaders(content: string, _config: CsvValidationConfig): ValidationError[] {
+    const errors: ValidationError[] = [];
+    const lines = content.split(/\r?\n/);
+    
+    if (lines.length === 0) return errors;
+    
+    const delimiterAnalysis = this.analyzeDelimiters(content);
+    const bestDelimiter = delimiterAnalysis.reduce((best, current) => 
+      current.confidence > best.confidence ? current : best
+    );
+    
+    const firstRow = this.parseRow(lines[0], bestDelimiter.delimiter, '"', '"', 0);
+    
+    // Check for duplicate headers
+    const headerCounts = new Map<string, number>();
+    const duplicateHeaders = new Set<string>();
+    
+    firstRow.forEach((header, _index) => {
+      const normalizedHeader = header.trim().toLowerCase();
+      if (normalizedHeader) {
+        const count = headerCounts.get(normalizedHeader) || 0;
+        headerCounts.set(normalizedHeader, count + 1);
+        
+        if (count > 0) {
+          duplicateHeaders.add(header.trim());
+        }
+      }
+    });
+    
+    duplicateHeaders.forEach(header => {
+      errors.push({
+        message: `Duplicate header "${header}" detected - may cause data processing issues`,
+        line: 1,
+        code: 'DUPLICATE_HEADERS',
+        severity: 'warning'
+      });
+    });
+    
+    // Check for empty headers
+    firstRow.forEach((header, index) => {
+      if (!header.trim()) {
+        errors.push({
+          message: `Empty header at column ${index + 1} - consider providing a meaningful name`,
+          line: 1,
+          column: index + 1,
+          code: 'EMPTY_HEADER',
+          severity: 'info'
+        });
+      }
+    });
+    
+    // Check for problematic header names
+    const problematicPatterns = [
+      { pattern: /^[0-9]/, message: 'starts with number', severity: 'info' as const },
+      { pattern: /\s{2,}/, message: 'contains multiple spaces', severity: 'info' as const },
+      { pattern: /[<>|&]/, message: 'contains potentially problematic characters', severity: 'warning' as const },
+      { pattern: /^(select|insert|update|delete|drop|create|alter|exec|execute)$/i, message: 'is a SQL keyword', severity: 'warning' as const }
+    ];
+    
+    firstRow.forEach((header, index) => {
+      const trimmedHeader = header.trim();
+      if (!trimmedHeader) return;
+      
+      for (const { pattern, message, severity } of problematicPatterns) {
+        if (pattern.test(trimmedHeader)) {
+          errors.push({
+            message: `Header "${trimmedHeader}" ${message} - consider renaming`,
+            line: 1,
+            column: index + 1,
+            code: 'PROBLEMATIC_HEADER_NAME',
+            severity
+          });
+        }
+      }
+      
+      // Check header length
+      if (trimmedHeader.length > 100) {
+        errors.push({
+          message: `Header "${trimmedHeader.substring(0, 50)}..." is very long (${trimmedHeader.length} characters) - consider shortening`,
+          line: 1,
+          column: index + 1,
+          code: 'LONG_HEADER_NAME',
+          severity: 'info'
+        });
+      }
+    });
+    
+    return errors;
   }
 }

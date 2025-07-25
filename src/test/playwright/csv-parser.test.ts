@@ -401,14 +401,15 @@ José,São Paulo,Olá mundo
     });
   });
 
-  test.describe('Validation Method Tests', () => {
-    test('should validate correct CSV without errors', async ({ page }) => {
+  test.describe('Validation Method Tests - Enhanced', () => {
+    test('should validate correct CSV without critical errors', async ({ page }) => {
       const result = await page.evaluate((CsvParserClass) => {
         const parser = new CsvParserClass();
         return parser.validate('Name,Age\nJohn,25\nJane,30');
       }, CsvParser);
 
-      expect(result).toHaveLength(0);
+      // Should not have any error-level issues, but may have warnings/info
+      expect(result.filter(error => error.severity === 'error')).toHaveLength(0);
     });
 
     test('should detect structural issues', async ({ page }) => {
@@ -418,10 +419,10 @@ José,São Paulo,Olá mundo
       }, CsvParser);
 
       expect(result.length).toBeGreaterThan(0);
-      expect(result[0].code).toBe('INVALID_CSV_FORMAT');
+      expect(result.some(error => error.code === 'INVALID_CSV_FORMAT')).toBe(true);
     });
 
-    test('should provide helpful error messages', async ({ page }) => {
+    test('should provide helpful error messages with enhanced validation', async ({ page }) => {
       const testCases = [
         { 
           input: 'Name,Age\n"John,25', 
@@ -443,6 +444,41 @@ José,São Paulo,Olá mundo
 
         expect(result.some(error => error.code === testCase.expectedCode)).toBe(true);
       }
+    });
+
+    test('should support validation configuration', async ({ page }) => {
+      const config = {
+        csv: {
+          validation: {
+            enableSecurityValidation: false,
+            enablePerformanceWarnings: false,
+            enableDataQualityChecks: false,
+            enableEncodingValidation: false,
+            enableHeaderValidation: false
+          }
+        }
+      };
+
+      const result = await page.evaluate(({ CsvParserClass, config }) => {
+        const parser = new CsvParserClass();
+        return parser.validate('=SUM(1+1),Age\nJohn,25', config);
+      }, { CsvParserClass: CsvParser, config });
+
+      // Should have fewer validation errors with everything disabled
+      expect(result.filter(error => error.code === 'CSV_INJECTION')).toHaveLength(0);
+    });
+
+    test('should include validation in parse results', async ({ page }) => {
+      const content = 'Name,Age,Name\nJohn,25,Smith'; // Duplicate headers
+
+      const result = await page.evaluate(({ CsvParserClass, content }) => {
+        const parser = new CsvParserClass();
+        return parser.parse(content);
+      }, { CsvParserClass: CsvParser, content });
+
+      expect(result.isValid).toBe(true); // Should still parse successfully
+      expect(result.errors.some(error => error.code === 'DUPLICATE_HEADERS')).toBe(true);
+      expect(result.errors.some(error => error.severity === 'warning')).toBe(true);
     });
   });
 
