@@ -76,17 +76,10 @@ class CodeKitApplication {
     // Create main application structure
     appContainer.innerHTML = `
       <div class="app">
-        <header class="app__header">
-          <div class="app__header-left">
-            <h1 style="margin: 0; font-size: var(--font-size-lg); color: var(--color-text-primary);">
-              CodeKit
-            </h1>
-          </div>
-          <div class="app__header-right">
-            <span style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">
-              Multi-Format Text Parser
-            </span>
-          </div>
+        <header class="app__header app__header--centered">
+          <h1 style="margin: 0; font-size: var(--font-size-lg); color: white; font-weight: 500;">
+            CodeKit
+          </h1>
         </header>
         <main class="app__main" id="main-content">
           <!-- Split panel will be inserted here -->
@@ -173,17 +166,9 @@ class CodeKitApplication {
     const leftPanel = this.splitPanel.getPrimaryPanel();
     const rightPanel = this.splitPanel.getSecondaryPanel();
 
-    // Left panel - Input area placeholder
+    // Left panel - Input area
     leftPanel.innerHTML = `
       <div style="padding: var(--spacing-md); height: 100%; display: flex; flex-direction: column;">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--spacing-md);">
-          <h2 style="margin: 0; font-size: var(--font-size-md); color: var(--color-text-primary);">
-            Input
-          </h2>
-          <button style="padding: var(--spacing-xs) var(--spacing-sm); background: var(--color-bg-tertiary); border: 1px solid var(--color-border-default); border-radius: var(--border-radius-sm); color: var(--color-text-primary); cursor: pointer;">
-            Clear
-          </button>
-        </div>
         <textarea 
           data-role="input"
           placeholder="Paste your JSON, CSV, XML, or other text data here..." 
@@ -206,12 +191,6 @@ class CodeKitApplication {
     // Right panel - Output area with validation panel
     rightPanel.innerHTML = `
       <div style="padding: var(--spacing-md); height: 100%; display: flex; flex-direction: column;">
-        <div style="display: flex; align-items: center; gap: var(--spacing-sm); margin-bottom: var(--spacing-md);">
-          <h2 style="margin: 0; font-size: var(--font-size-md); color: var(--color-text-primary);">
-            Output
-          </h2>
-          <span id="output-format-badge" style="display: none;"></span>
-        </div>
         <div data-role="output" style="
           flex: 1; 
           background: var(--color-bg-primary); 

@@ -85,20 +85,6 @@ export class ParseManager {
     }, 500));
 
 
-    // Clear button click
-    const clearButton = document.querySelector('button[data-action="clear"]') as HTMLButtonElement;
-    if (!clearButton) {
-      const buttons = document.querySelectorAll('button');
-      const foundClearButton = Array.from(buttons).find(btn => 
-        btn.textContent?.toLowerCase().includes('clear')
-      );
-      if (foundClearButton) {
-        foundClearButton.setAttribute('data-action', 'clear');
-        foundClearButton.addEventListener('click', () => this.handleClearClick());
-      }
-    } else {
-      clearButton.addEventListener('click', () => this.handleClearClick());
-    }
 
   }
 
@@ -153,19 +139,6 @@ export class ParseManager {
   }
 
 
-  /**
-   * Handle clear button click
-   */
-  private handleClearClick(): void {
-    if (this.inputElement) {
-      this.inputElement.value = '';
-      this.currentContent = '';
-      this.currentResult = null;
-      this.currentDetection = null;
-      this.showEmptyState();
-      this.updateStatus();
-    }
-  }
 
 
   /**
@@ -184,8 +157,6 @@ export class ParseManager {
   private displayInteractiveMode(): void {
     if (!this.outputElement || !this.currentResult) return;
 
-    // Update main header format badge
-    this.updateMainHeaderFormatBadge();
     
     this.outputElement.innerHTML = `
       <div style="
@@ -406,8 +377,6 @@ export class ParseManager {
   private showLoadingState(): void {
     if (!this.outputElement) return;
 
-    // Clear main header format badge during loading
-    this.clearMainHeaderFormatBadge();
 
     // Clear validation panel during loading to prevent stale warnings
     if (this.validationCallback) {
@@ -437,8 +406,6 @@ export class ParseManager {
   private showEmptyState(): void {
     if (!this.outputElement) return;
 
-    // Clear main header format badge
-    this.clearMainHeaderFormatBadge();
 
     // Clear current results to ensure clean state
     this.currentResult = null;
@@ -473,8 +440,6 @@ export class ParseManager {
   private showError(message: string): void {
     if (!this.outputElement) return;
 
-    // Clear main header format badge on error
-    this.clearMainHeaderFormatBadge();
 
     // Clear validation panel on error to prevent stale warnings
     if (this.validationCallback) {
@@ -505,8 +470,6 @@ export class ParseManager {
   private showRawInput(content: string): void {
     if (!this.outputElement) return;
 
-    // Clear main header format badge for raw input
-    this.clearMainHeaderFormatBadge();
 
     this.outputElement.innerHTML = `
       <div style="
@@ -580,28 +543,6 @@ export class ParseManager {
     this.validationCallback = callback;
   }
 
-  /**
-   * Update main header format badge
-   */
-  private updateMainHeaderFormatBadge(): void {
-    const badgeContainer = document.getElementById('output-format-badge');
-    if (badgeContainer && this.currentDetection) {
-      const formatBadge = this.getFormatBadge(this.currentDetection.format);
-      badgeContainer.innerHTML = formatBadge;
-      badgeContainer.style.display = 'inline-block';
-    }
-  }
-
-  /**
-   * Clear main header format badge
-   */
-  private clearMainHeaderFormatBadge(): void {
-    const badgeContainer = document.getElementById('output-format-badge');
-    if (badgeContainer) {
-      badgeContainer.innerHTML = '';
-      badgeContainer.style.display = 'none';
-    }
-  }
 
   /**
    * Debounce utility
