@@ -90,11 +90,9 @@ Achieve competitive parity with JSON.pub through comprehensive multi-format supp
    - Implement linting rules for XML inputs
    - Format validation engine with user-friendly, specific error and location messages
    - Performance benchmarks for large files
-5. **Interactive Data Visualization** (P0, 4-5 hours)
+5. **Interactive Data Visualization** (P0, 1-2 hours)
    - JSON tree renderer with expand/collapse controls
-   - CSV table renderer with sorting and filtering
-   - Output panel multi-mode support (text/interactive)
-   - Smooth mode switching and state preservation
+   - CSV table renderer with sorting by column
 
 #### Dependencies
 - Phase 1 completion (multi-format registry must be operational)
