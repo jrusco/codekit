@@ -84,21 +84,6 @@ export class ParseManager {
       this.handleInputChange();
     }, 500));
 
-    // Parse button click
-    const parseButton = document.querySelector('button[data-action="parse"]') as HTMLButtonElement;
-    if (!parseButton) {
-      // Find parse button by text content
-      const buttons = document.querySelectorAll('button');
-      const foundParseButton = Array.from(buttons).find(btn => 
-        btn.textContent?.toLowerCase().includes('parse')
-      );
-      if (foundParseButton) {
-        foundParseButton.setAttribute('data-action', 'parse');
-        foundParseButton.addEventListener('click', () => this.handleParseClick());
-      }
-    } else {
-      parseButton.addEventListener('click', () => this.handleParseClick());
-    }
 
     // Clear button click
     const clearButton = document.querySelector('button[data-action="clear"]') as HTMLButtonElement;
@@ -115,20 +100,6 @@ export class ParseManager {
       clearButton.addEventListener('click', () => this.handleClearClick());
     }
 
-    // Output mode toggle buttons
-    const textModeButton = Array.from(document.querySelectorAll('button')).find(btn => 
-      btn.textContent?.toLowerCase().includes('text')
-    );
-    const interactiveModeButton = Array.from(document.querySelectorAll('button')).find(btn => 
-      btn.textContent?.toLowerCase().includes('interactive')
-    );
-
-    if (textModeButton) {
-      textModeButton.addEventListener('click', () => this.setOutputMode('text'));
-    }
-    if (interactiveModeButton) {
-      interactiveModeButton.addEventListener('click', () => this.setOutputMode('interactive'));
-    }
   }
 
   /**
@@ -181,14 +152,6 @@ export class ParseManager {
     }
   }
 
-  /**
-   * Handle parse button click
-   */
-  private handleParseClick(): void {
-    if (this.inputElement?.value.trim()) {
-      this.handleInputChange();
-    }
-  }
 
   /**
    * Handle clear button click
@@ -204,79 +167,16 @@ export class ParseManager {
     }
   }
 
-  /**
-   * Set output display mode
-   */
-  private setOutputMode(mode: 'text' | 'interactive'): void {
-    // Update button states
-    const textButton = Array.from(document.querySelectorAll('button')).find(btn => 
-      btn.textContent?.toLowerCase().includes('text')
-    );
-    const interactiveButton = Array.from(document.querySelectorAll('button')).find(btn => 
-      btn.textContent?.toLowerCase().includes('interactive')
-    );
-
-    if (textButton && interactiveButton) {
-      if (mode === 'text') {
-        textButton.style.background = 'var(--color-primary)';
-        textButton.style.color = 'var(--color-text-inverse)';
-        interactiveButton.style.background = 'var(--color-bg-tertiary)';
-        interactiveButton.style.color = 'var(--color-text-primary)';
-      } else {
-        interactiveButton.style.background = 'var(--color-interactive-tree)';
-        interactiveButton.style.color = 'var(--color-text-inverse)';
-        textButton.style.background = 'var(--color-bg-tertiary)';
-        textButton.style.color = 'var(--color-text-primary)';
-      }
-    }
-
-    // Re-display current result in new mode
-    if (this.currentResult) {
-      this.displayResult(mode);
-    }
-  }
 
   /**
-   * Display parsing result
+   * Display parsing result in interactive mode
    */
-  private displayResult(mode: 'text' | 'interactive' = 'interactive'): void {
+  private displayResult(): void {
     if (!this.outputElement || !this.currentResult || !this.currentDetection) return;
 
-    if (mode === 'text') {
-      this.displayTextMode();
-    } else {
-      this.displayInteractiveMode();
-    }
+    this.displayInteractiveMode();
   }
 
-  /**
-   * Display result in text mode
-   */
-  private displayTextMode(): void {
-    if (!this.outputElement || !this.currentResult) return;
-
-    // Update main header format badge
-    this.updateMainHeaderFormatBadge();
-    
-    this.outputElement.innerHTML = `
-      <div style="
-        flex: 1;
-        overflow-y: auto;
-        overflow-x: auto;
-        min-height: 0;
-      ">
-        <pre style="
-          margin: 0; 
-          padding: var(--spacing-md);
-          white-space: pre-wrap; 
-          color: var(--color-text-primary);
-          font-family: var(--font-family-mono); 
-          font-size: var(--font-size-sm);
-          line-height: 1.4;
-        ">${this.formatForTextDisplay()}</pre>
-      </div>
-    `;
-  }
 
   /**
    * Display result in interactive mode
@@ -477,18 +377,6 @@ export class ParseManager {
     </div>`;
   }
 
-  /**
-   * Format data for text display
-   */
-  private formatForTextDisplay(): string {
-    if (!this.currentResult?.data) return 'No data available';
-
-    try {
-      return JSON.stringify(this.currentResult.data, null, 2);
-    } catch (error) {
-      return String(this.currentResult.data);
-    }
-  }
 
   /**
    * Get format badge HTML

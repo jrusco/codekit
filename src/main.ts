@@ -180,14 +180,9 @@ class CodeKitApplication {
           <h2 style="margin: 0; font-size: var(--font-size-md); color: var(--color-text-primary);">
             Input
           </h2>
-          <div style="display: flex; gap: var(--spacing-sm);">
-            <button style="padding: var(--spacing-xs) var(--spacing-sm); background: var(--color-bg-tertiary); border: 1px solid var(--color-border-default); border-radius: var(--border-radius-sm); color: var(--color-text-primary); cursor: pointer;">
-              Clear
-            </button>
-            <button style="padding: var(--spacing-xs) var(--spacing-sm); background: var(--color-primary); border: none; border-radius: var(--border-radius-sm); color: var(--color-text-inverse); cursor: pointer;">
-              Parse
-            </button>
-          </div>
+          <button style="padding: var(--spacing-xs) var(--spacing-sm); background: var(--color-bg-tertiary); border: 1px solid var(--color-border-default); border-radius: var(--border-radius-sm); color: var(--color-text-primary); cursor: pointer;">
+            Clear
+          </button>
         </div>
         <textarea 
           data-role="input"
@@ -211,21 +206,11 @@ class CodeKitApplication {
     // Right panel - Output area with validation panel
     rightPanel.innerHTML = `
       <div style="padding: var(--spacing-md); height: 100%; display: flex; flex-direction: column;">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--spacing-md);">
-          <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
-            <h2 style="margin: 0; font-size: var(--font-size-md); color: var(--color-text-primary);">
-              Output
-            </h2>
-            <span id="output-format-badge" style="display: none;"></span>
-          </div>
-          <div style="display: flex; gap: var(--spacing-sm);">
-            <button style="padding: var(--spacing-xs) var(--spacing-sm); background: var(--color-bg-tertiary); border: 1px solid var(--color-border-default); border-radius: var(--border-radius-sm); color: var(--color-text-primary); cursor: pointer;">
-              Text
-            </button>
-            <button style="padding: var(--spacing-xs) var(--spacing-sm); background: var(--color-interactive-tree); border: none; border-radius: var(--border-radius-sm); color: var(--color-text-inverse); cursor: pointer;">
-              Interactive
-            </button>
-          </div>
+        <div style="display: flex; align-items: center; gap: var(--spacing-sm); margin-bottom: var(--spacing-md);">
+          <h2 style="margin: 0; font-size: var(--font-size-md); color: var(--color-text-primary);">
+            Output
+          </h2>
+          <span id="output-format-badge" style="display: none;"></span>
         </div>
         <div data-role="output" style="
           flex: 1; 
