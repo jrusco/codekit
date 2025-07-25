@@ -584,8 +584,8 @@ export class JsonParser implements FormatParser<any> {
     // Validate structure recursively
     this.validateDataStructure(data, errors, [], 0);
     
-    // Check for duplicate keys in original content
-    const duplicateKeyErrors = this.findDuplicateKeys(originalContent);
+    // Check for duplicate keys using parsed JSON structure
+    const duplicateKeyErrors = this.findDuplicateKeysInParsedData(data);
     errors.push(...duplicateKeyErrors);
     
     // Property naming conventions
@@ -725,37 +725,49 @@ export class JsonParser implements FormatParser<any> {
   }
 
   /**
-   * Find duplicate keys in JSON content
+   * Find duplicate keys using parsed JSON structure
+   * Only reports duplicates within the same object scope
    */
-  private findDuplicateKeys(content: string): ValidationError[] {
+  private findDuplicateKeysInParsedData(data: any, path: string[] = []): ValidationError[] {
     const errors: ValidationError[] = [];
-    const lines = content.split('\n');
     
-    // Simple duplicate detection - would need more sophisticated parsing for complex cases
-    const keyPattern = /"([^"]+)"\s*:/g;
-    const keysByLine: Map<string, number[]> = new Map();
-    
-    lines.forEach((line, lineIndex) => {
-      let match;
-      while ((match = keyPattern.exec(line)) !== null) {
-        const key = match[1];
-        if (!keysByLine.has(key)) {
-          keysByLine.set(key, []);
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      // Check for duplicate keys in this object
+      const keys = Object.keys(data);
+      const keySet = new Set<string>();
+      const duplicateKeys = new Set<string>();
+      
+      keys.forEach(key => {
+        if (keySet.has(key)) {
+          duplicateKeys.add(key);
+        } else {
+          keySet.add(key);
         }
-        keysByLine.get(key)!.push(lineIndex + 1);
-      }
-    });
-    
-    keysByLine.forEach((lineNumbers, key) => {
-      if (lineNumbers.length > 1) {
+      });
+      
+      // Report duplicate keys found in this object
+      duplicateKeys.forEach(key => {
+        const objectPath = path.length > 0 ? path.join('.') : 'root';
         errors.push({
-          message: `Duplicate key '${key}' found on lines ${lineNumbers.join(', ')}`,
-          line: lineNumbers[1], // Point to second occurrence
+          message: `Duplicate key '${key}' found in object at ${objectPath}`,
           code: 'DUPLICATE_KEY',
           severity: 'warning'
         });
-      }
-    });
+      });
+      
+      // Recursively check nested objects
+      keys.forEach(key => {
+        const value = data[key];
+        const nestedErrors = this.findDuplicateKeysInParsedData(value, [...path, key]);
+        errors.push(...nestedErrors);
+      });
+    } else if (Array.isArray(data)) {
+      // Recursively check array elements
+      data.forEach((item, index) => {
+        const nestedErrors = this.findDuplicateKeysInParsedData(item, [...path, `[${index}]`]);
+        errors.push(...nestedErrors);
+      });
+    }
     
     return errors;
   }

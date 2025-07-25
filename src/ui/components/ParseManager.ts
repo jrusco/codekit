@@ -521,6 +521,11 @@ export class ParseManager {
     // Clear main header format badge during loading
     this.clearMainHeaderFormatBadge();
 
+    // Clear validation panel during loading to prevent stale warnings
+    if (this.validationCallback) {
+      this.validationCallback([]);
+    }
+
     this.outputElement.innerHTML = `
       <div style="
         flex: 1;
@@ -547,6 +552,10 @@ export class ParseManager {
     // Clear main header format badge
     this.clearMainHeaderFormatBadge();
 
+    // Clear current results to ensure clean state
+    this.currentResult = null;
+    this.currentDetection = null;
+
     this.outputElement.innerHTML = `
       <div style="
         flex: 1;
@@ -565,6 +574,9 @@ export class ParseManager {
         </div>
       </div>
     `;
+
+    // Update status to clear validation panel
+    this.updateStatus();
   }
 
   /**
@@ -575,6 +587,11 @@ export class ParseManager {
 
     // Clear main header format badge on error
     this.clearMainHeaderFormatBadge();
+
+    // Clear validation panel on error to prevent stale warnings
+    if (this.validationCallback) {
+      this.validationCallback([]);
+    }
 
     this.outputElement.innerHTML = `
       <div style="
@@ -637,10 +654,10 @@ export class ParseManager {
    * Update status bar and validation panel
    */
   private updateStatus(): void {
-    if (this.statusCallback && this.currentContent) {
-      const lineCount = this.currentContent.split('\n').length;
-      const characterCount = this.currentContent.length;
-      const fileSize = new Blob([this.currentContent]).size;
+    if (this.statusCallback) {
+      const lineCount = this.currentContent ? this.currentContent.split('\n').length : 0;
+      const characterCount = this.currentContent ? this.currentContent.length : 0;
+      const fileSize = this.currentContent ? new Blob([this.currentContent]).size : 0;
 
       this.statusCallback({
         format: this.currentDetection?.format?.toUpperCase() || 'UNKNOWN',
@@ -654,9 +671,10 @@ export class ParseManager {
       });
     }
 
-    // Update validation panel with errors/warnings
-    if (this.validationCallback && this.currentResult?.errors) {
-      this.validationCallback(this.currentResult.errors);
+    // Always update validation panel - clear it when no errors exist
+    if (this.validationCallback) {
+      const errors = this.currentResult?.errors || [];
+      this.validationCallback(errors);
     }
   }
 
