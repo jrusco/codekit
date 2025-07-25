@@ -156,12 +156,18 @@ export class ParseManager {
         const parser = formatRegistry.getParser(this.currentDetection.format);
         if (parser) {
           this.currentResult = parser.parse(content);
-          this.displayResult();
+          if (this.currentResult.isValid) {
+            this.displayResult();
+          } else {
+            // Parsing failed - show raw input as fallback
+            this.showRawInput(content);
+          }
         } else {
-          this.showError('Parser not found for detected format');
+          this.showRawInput(content);
         }
       } else {
-        this.showError('Unable to detect format. Supported formats: JSON, CSV, XML');
+        // Format not detected - show raw input as fallback
+        this.showRawInput(content);
       }
 
       // Update status bar
@@ -169,7 +175,8 @@ export class ParseManager {
 
     } catch (error) {
       console.error('Parse error:', error);
-      this.showError(error instanceof Error ? error.message : 'Unknown parsing error');
+      // On unexpected errors, show raw input as fallback
+      this.showRawInput(content);
     }
   }
 
@@ -351,7 +358,7 @@ export class ParseManager {
     }
 
     const headerRow = data.headers.map((header: string) => 
-      `<th style="padding: var(--spacing-xs) var(--spacing-sm); background: var(--color-bg-tertiary); border: 1px solid var(--color-border-default); text-align: left; font-weight: 500;">${header}</th>`
+      `<th style="padding: var(--spacing-xs) var(--spacing-sm); background: var(--color-bg-primary); border: 1px solid var(--color-border-default); text-align: left; font-weight: 500;">${header}</th>`
     ).join('');
 
     const dataRows = data.rows.slice(0, 100).map((row: any) => {
@@ -571,6 +578,55 @@ export class ParseManager {
         </div>
       </div>
     `;
+  }
+
+  /**
+   * Show raw input as fallback when parsing fails
+   */
+  private showRawInput(content: string): void {
+    if (!this.outputElement) return;
+
+    // Clear main header format badge for raw input
+    this.clearMainHeaderFormatBadge();
+
+    this.outputElement.innerHTML = `
+      <div style="
+        flex: 1;
+        padding: var(--spacing-md); 
+        font-family: var(--font-family-mono); 
+        font-size: var(--font-size-sm);
+        overflow-y: auto;
+        overflow-x: auto;
+        min-height: 0;
+        background: var(--color-bg-primary);
+      ">
+        <div style="
+          margin-bottom: var(--spacing-sm); 
+          color: var(--color-text-muted); 
+          font-size: var(--font-size-xs);
+          font-family: var(--font-family-base);
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-xs);
+        ">
+        </div>
+        <pre style="
+          margin: 0; 
+          white-space: pre-wrap; 
+          color: var(--color-text-secondary);
+          line-height: 1.4;
+        ">${this.escapeHtml(content)}</pre>
+      </div>
+    `;
+  }
+
+  /**
+   * Escape HTML characters for safe display
+   */
+  private escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
 
   /**
