@@ -355,6 +355,192 @@ body {
   height: 14px !important;
 }
 
+/* Validation Panel Styles */
+.validation-panel {
+  font-family: var(--font-family-base);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  overflow: hidden;
+}
+
+.validation-panel__header {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-bottom: 1px solid var(--color-border-default);
+  background: var(--color-bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.validation-panel__title {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.validation-panel__summary {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.validation-panel__summary-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-xs);
+}
+
+.validation-panel__summary-item--error {
+  color: var(--color-error);
+}
+
+.validation-panel__summary-item--warning {
+  color: var(--color-warning);
+}
+
+.validation-panel__summary-item--info {
+  color: var(--color-info);
+}
+
+.validation-panel__icon {
+  font-weight: bold;
+}
+
+.validation-panel__content {
+  max-height: 160px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.validation-panel__section {
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.validation-panel__section:last-child {
+  border-bottom: none;
+}
+
+.validation-panel__section-header {
+  width: 100%;
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  transition: background-color 0.2s ease;
+}
+
+.validation-panel__section-header:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.validation-panel__section-header--collapsed .validation-panel__section-toggle {
+  transform: rotate(0deg);
+}
+
+.validation-panel__section-toggle {
+  font-size: var(--font-size-xs);
+  transition: transform 0.2s ease;
+  transform: rotate(0deg);
+}
+
+.validation-panel__section-icon {
+  font-weight: bold;
+}
+
+.validation-panel__section--error .validation-panel__section-icon {
+  color: var(--color-error);
+}
+
+.validation-panel__section--warning .validation-panel__section-icon {
+  color: var(--color-warning);
+}
+
+.validation-panel__section--info .validation-panel__section-icon {
+  color: var(--color-info);
+}
+
+.validation-panel__section-title {
+  font-weight: 500;
+}
+
+.validation-panel__section-count {
+  color: var(--color-text-muted);
+  margin-left: auto;
+}
+
+.validation-panel__section-content {
+  transition: max-height 0.3s ease, opacity 0.3s ease;
+  overflow: hidden;
+}
+
+.validation-panel__section-content--collapsed {
+  max-height: 0;
+  opacity: 0;
+}
+
+.validation-panel__error {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-left: 3px solid transparent;
+  background: var(--color-bg-primary);
+}
+
+.validation-panel__error--error {
+  border-left-color: var(--color-error);
+  background: rgba(248, 81, 73, 0.05);
+}
+
+.validation-panel__error--warning {
+  border-left-color: var(--color-warning);
+  background: rgba(255, 193, 7, 0.05);
+}
+
+.validation-panel__error--info {
+  border-left-color: var(--color-info);
+  background: rgba(13, 110, 253, 0.05);
+}
+
+.validation-panel__error-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-xs);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.validation-panel__location {
+  font-family: var(--font-family-mono);
+  background: var(--color-bg-tertiary);
+  padding: 2px var(--spacing-xs);
+  border-radius: var(--border-radius-sm);
+}
+
+.validation-panel__error-code {
+  font-family: var(--font-family-mono);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.validation-panel__error-message {
+  font-size: var(--font-size-sm);
+  line-height: 1.4;
+  color: var(--color-text-primary);
+}
+
+.validation-panel__empty {
+  padding: var(--spacing-md);
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
 /* High contrast mode support */
 @media (prefers-contrast: high) {
   .status-bar__separator,
@@ -364,6 +550,10 @@ body {
   
   .status-bar__badge {
     border: 1px solid var(--color-text-primary);
+  }
+  
+  .validation-panel__error {
+    border-left-width: 4px;
   }
 }
 

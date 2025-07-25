@@ -1,7 +1,7 @@
 // Parse Manager - Connects UI to multi-format parsers
 import { formatDetector } from '../../core/formatters/FormatDetector.ts';
 import { formatRegistry } from '../../core/formatters/FormatRegistry.ts';
-import type { ParseResult, DetectionResult } from '../../types/core.ts';
+import type { ParseResult, DetectionResult, ValidationError } from '../../types/core.ts';
 
 /**
  * Interface for status bar data
@@ -25,6 +25,7 @@ export class ParseManager {
   private inputElement?: HTMLTextAreaElement;
   private outputElement?: HTMLElement;
   private statusCallback?: (data: StatusData) => void;
+  private validationCallback?: (errors: ValidationError[]) => void;
   private currentContent = '';
   private currentResult: ParseResult<any> | null = null;
   private currentDetection: DetectionResult | null = null;
@@ -260,14 +261,19 @@ export class ParseManager {
     this.outputElement.innerHTML = `
       <div style="
         flex: 1;
-        padding: var(--spacing-md); 
-        font-family: var(--font-family-mono); 
-        font-size: var(--font-size-sm);
         overflow-y: auto;
         overflow-x: auto;
         min-height: 0;
       ">
-        <pre style="margin: 0; white-space: pre-wrap; color: var(--color-text-primary);">${this.formatForTextDisplay()}</pre>
+        <pre style="
+          margin: 0; 
+          padding: var(--spacing-md);
+          white-space: pre-wrap; 
+          color: var(--color-text-primary);
+          font-family: var(--font-family-mono); 
+          font-size: var(--font-size-sm);
+          line-height: 1.4;
+        ">${this.formatForTextDisplay()}</pre>
       </div>
     `;
   }
@@ -303,7 +309,15 @@ export class ParseManager {
 
     switch (format) {
       case 'json':
-        return this.generateJsonTreeView(this.currentResult.data);
+        return `<pre style="
+          margin: 0; 
+          padding: var(--spacing-md);
+          white-space: pre-wrap; 
+          color: var(--color-text-primary);
+          font-family: var(--font-family-mono); 
+          font-size: var(--font-size-sm);
+          line-height: 1.4;
+        ">${this.generateJsonTreeView(this.currentResult.data)}</pre>`;
       case 'csv':
         return this.generateCsvTableView(this.currentResult.data);
       case 'xml':
@@ -592,28 +606,18 @@ export class ParseManager {
     this.outputElement.innerHTML = `
       <div style="
         flex: 1;
-        padding: var(--spacing-md); 
-        font-family: var(--font-family-mono); 
-        font-size: var(--font-size-sm);
         overflow-y: auto;
         overflow-x: auto;
         min-height: 0;
         background: var(--color-bg-primary);
       ">
-        <div style="
-          margin-bottom: var(--spacing-sm); 
-          color: var(--color-text-muted); 
-          font-size: var(--font-size-xs);
-          font-family: var(--font-family-base);
-          display: flex;
-          align-items: center;
-          gap: var(--spacing-xs);
-        ">
-        </div>
         <pre style="
           margin: 0; 
+          padding: var(--spacing-md);
           white-space: pre-wrap; 
-          color: var(--color-text-secondary);
+          color: var(--color-text-primary);
+          font-family: var(--font-family-mono); 
+          font-size: var(--font-size-sm);
           line-height: 1.4;
         ">${this.escapeHtml(content)}</pre>
       </div>
@@ -630,7 +634,7 @@ export class ParseManager {
   }
 
   /**
-   * Update status bar
+   * Update status bar and validation panel
    */
   private updateStatus(): void {
     if (this.statusCallback && this.currentContent) {
@@ -649,6 +653,11 @@ export class ParseManager {
         warnings: this.currentResult?.errors?.filter(e => e.severity === 'warning').length || 0
       });
     }
+
+    // Update validation panel with errors/warnings
+    if (this.validationCallback && this.currentResult?.errors) {
+      this.validationCallback(this.currentResult.errors);
+    }
   }
 
   /**
@@ -656,6 +665,13 @@ export class ParseManager {
    */
   public setStatusCallback(callback: (data: StatusData) => void): void {
     this.statusCallback = callback;
+  }
+
+  /**
+   * Set validation callback for error/warning display
+   */
+  public setValidationCallback(callback: (errors: ValidationError[]) => void): void {
+    this.validationCallback = callback;
   }
 
   /**

@@ -4,6 +4,7 @@ import './styles/main.css';
 import { darkTheme, generateCSSCustomProperties } from './styles/theme';
 import { SplitPanel } from './ui/layout/SplitPanel';
 import { StatusBar } from './ui/components/StatusBar';
+import { ValidationPanel } from './ui/components/ValidationPanel';
 import { initializeDefaultShortcuts } from './ui/components/KeyboardShortcuts';
 import { PerformanceMonitor } from './utils/performance';
 import { initializeFormatters } from './core/formatters/index.ts';
@@ -15,6 +16,7 @@ import { parseManager } from './ui/components/ParseManager.ts';
 class CodeKitApplication {
   private splitPanel!: SplitPanel;
   private statusBar!: StatusBar;
+  private validationPanel!: ValidationPanel;
   private performanceMonitor = PerformanceMonitor.getInstance();
 
   constructor() {
@@ -143,9 +145,22 @@ class CodeKitApplication {
     });
     this.statusBar.mount();
 
-    // Connect parse manager to status bar
+    // Initialize validation panel
+    const validationContainer = document.getElementById('validation-container');
+    if (!validationContainer) {
+      throw new Error('Validation container not found');
+    }
+
+    this.validationPanel = new ValidationPanel(validationContainer);
+    this.validationPanel.mount();
+
+    // Connect parse manager to status bar and validation panel
     parseManager.setStatusCallback((data) => {
       this.statusBar.setData(data);
+    });
+
+    parseManager.setValidationCallback((errors) => {
+      this.validationPanel.updateValidation(errors);
     });
     
     endTiming();
@@ -193,7 +208,7 @@ class CodeKitApplication {
       </div>
     `;
 
-    // Right panel - Output area placeholder  
+    // Right panel - Output area with validation panel
     rightPanel.innerHTML = `
       <div style="padding: var(--spacing-md); height: 100%; display: flex; flex-direction: column;">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--spacing-md);">
@@ -221,6 +236,7 @@ class CodeKitApplication {
           min-height: 0;
           display: flex;
           flex-direction: column;
+          margin-bottom: var(--spacing-md);
         ">
           <div style="
             flex: 1;
@@ -240,6 +256,15 @@ class CodeKitApplication {
               </div>
             </div>
           </div>
+        </div>
+        <div id="validation-container" style="
+          flex: 0 0 auto;
+          max-height: 200px;
+          border: 1px solid var(--color-border-default);
+          border-radius: var(--border-radius-md);
+          overflow: hidden;
+        ">
+          <!-- Validation panel will be inserted here -->
         </div>
       </div>
     `;
