@@ -1,6 +1,6 @@
 // Enterprise keyboard shortcut system - similar to VS Code's keybinding system
 
-import type { KeyboardShortcut } from '@/types/ui';
+import type { KeyboardShortcut } from '../../types/ui';
 
 /**
  * Keyboard shortcut manager - singleton pattern

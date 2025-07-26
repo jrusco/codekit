@@ -47,6 +47,15 @@ export interface ColorPalette {
     success: string;
     info: string;
   };
+  readonly syntax: {
+    string: string;
+    number: string;
+    boolean: string;
+    null: string;
+    key: string;
+    tag: string;
+    date: string;
+  };
 }
 
 /**

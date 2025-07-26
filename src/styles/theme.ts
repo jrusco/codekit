@@ -44,6 +44,16 @@ export const darkTheme: ThemeConfig = {
       warning: '#d29922',
       success: '#3fb950',
       info: '#79c0ff'
+    },
+    
+    syntax: {
+      string: '#a5d6ff',     // String literals
+      number: '#79c0ff',     // Numbers
+      boolean: '#56d364',    // Booleans
+      null: '#8b949e',       // Null values
+      key: '#f69d50',        // Object keys
+      tag: '#f47067',        // XML tags
+      date: '#d2a8ff'        // Date values
     }
   },
   
@@ -126,6 +136,18 @@ export function generateCSSCustomProperties(theme: ThemeConfig): Record<string, 
     '--color-status-warning': theme.colors.status.warning,
     '--color-status-success': theme.colors.status.success,
     '--color-status-info': theme.colors.status.info,
+    
+    // Syntax highlighting
+    '--color-syntax-string': theme.colors.syntax.string,
+    '--color-syntax-number': theme.colors.syntax.number,
+    '--color-syntax-boolean': theme.colors.syntax.boolean,
+    '--color-syntax-null': theme.colors.syntax.null,
+    '--color-syntax-key': theme.colors.syntax.key,
+    '--color-syntax-tag': theme.colors.syntax.tag,
+    '--color-syntax-date': theme.colors.syntax.date,
+    
+    // Missing text colors
+    '--color-text-inverse': theme.colors.text.inverse,
     
     // Spacing
     '--spacing-xs': theme.spacing.xs,

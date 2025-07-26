@@ -1,7 +1,7 @@
 // Base component class - similar to Spring's @Component pattern
 
-import type { ComponentSize, ComponentState } from '@/types/ui';
-import { PerformanceMonitor } from '@/utils/performance';
+import type { ComponentSize, ComponentState } from '../../types/ui';
+import { PerformanceMonitor } from '../../utils/performance';
 
 /**
  * Abstract base component following enterprise patterns

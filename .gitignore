@@ -141,3 +141,12 @@ vite.config.ts.timestamp-*
 # Claude
 .claude/settings.local.json
 .claude/notebook.md
+
+# manual local testing
+/test-results
+/playwright-report
+temp_validation_methods.ts
+test_json_validation.json
+src/test/playwright/json-validation-edge-cases.test.ts
+src/test/playwright/json-validation-ui-fixed.test.ts
+src/test/playwright/json-validation-ui.test.ts

@@ -4,9 +4,11 @@ import './styles/main.css';
 import { darkTheme, generateCSSCustomProperties } from './styles/theme';
 import { SplitPanel } from './ui/layout/SplitPanel';
 import { StatusBar } from './ui/components/StatusBar';
+import { ValidationPanel } from './ui/components/ValidationPanel';
 import { initializeDefaultShortcuts } from './ui/components/KeyboardShortcuts';
-import { PerformanceMonitor } from '@/utils/performance';
+import { PerformanceMonitor } from './utils/performance';
 import { initializeFormatters } from './core/formatters/index.ts';
+import { parseManager } from './ui/components/ParseManager.ts';
 
 /**
  * Main application class - similar to Spring Boot's @SpringBootApplication
@@ -14,6 +16,7 @@ import { initializeFormatters } from './core/formatters/index.ts';
 class CodeKitApplication {
   private splitPanel!: SplitPanel;
   private statusBar!: StatusBar;
+  private validationPanel!: ValidationPanel;
   private performanceMonitor = PerformanceMonitor.getInstance();
 
   constructor() {
@@ -73,17 +76,10 @@ class CodeKitApplication {
     // Create main application structure
     appContainer.innerHTML = `
       <div class="app">
-        <header class="app__header">
-          <div class="app__header-left">
-            <h1 style="margin: 0; font-size: var(--font-size-lg); color: var(--color-text-primary);">
-              CodeKit
-            </h1>
-          </div>
-          <div class="app__header-right">
-            <span style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">
-              Multi-Format Text Parser
-            </span>
-          </div>
+        <header class="app__header app__header--centered">
+          <h1 style="margin: 0; font-size: var(--font-size-lg); color: white; font-weight: 500;">
+            CodeKit
+          </h1>
         </header>
         <main class="app__main" id="main-content">
           <!-- Split panel will be inserted here -->
@@ -129,17 +125,36 @@ class CodeKitApplication {
     }
 
     this.statusBar = new StatusBar(statusContainer);
+    // Set initial status bar data
     this.statusBar.setData({
-      format: 'JSON',
-      confidence: 0.95,
-      fileSize: 1024,
-      lineCount: 25,
-      characterCount: 1024,
-      parseTime: 15.5,
+      format: 'READY',
+      confidence: 0,
+      fileSize: 0,
+      lineCount: 0,
+      characterCount: 0,
+      parseTime: 0,
       errors: 0,
-      warnings: 1
+      warnings: 0
     });
     this.statusBar.mount();
+
+    // Initialize validation panel
+    const validationContainer = document.getElementById('validation-container');
+    if (!validationContainer) {
+      throw new Error('Validation container not found');
+    }
+
+    this.validationPanel = new ValidationPanel(validationContainer);
+    this.validationPanel.mount();
+
+    // Connect parse manager to status bar and validation panel
+    parseManager.setStatusCallback((data) => {
+      this.statusBar.setData(data);
+    });
+
+    parseManager.setValidationCallback((errors) => {
+      this.validationPanel.updateValidation(errors);
+    });
     
     endTiming();
   }
@@ -151,23 +166,11 @@ class CodeKitApplication {
     const leftPanel = this.splitPanel.getPrimaryPanel();
     const rightPanel = this.splitPanel.getSecondaryPanel();
 
-    // Left panel - Input area placeholder
+    // Left panel - Input area
     leftPanel.innerHTML = `
       <div style="padding: var(--spacing-md); height: 100%; display: flex; flex-direction: column;">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--spacing-md);">
-          <h2 style="margin: 0; font-size: var(--font-size-md); color: var(--color-text-primary);">
-            Input
-          </h2>
-          <div style="display: flex; gap: var(--spacing-sm);">
-            <button style="padding: var(--spacing-xs) var(--spacing-sm); background: var(--color-bg-tertiary); border: 1px solid var(--color-border-default); border-radius: var(--border-radius-sm); color: var(--color-text-primary); cursor: pointer;">
-              Clear
-            </button>
-            <button style="padding: var(--spacing-xs) var(--spacing-sm); background: var(--color-primary); border: none; border-radius: var(--border-radius-sm); color: var(--color-text-inverse); cursor: pointer;">
-              Parse
-            </button>
-          </div>
-        </div>
         <textarea 
+          data-role="input"
           placeholder="Paste your JSON, CSV, XML, or other text data here..." 
           style="
             flex: 1; 
@@ -185,44 +188,47 @@ class CodeKitApplication {
       </div>
     `;
 
-    // Right panel - Output area placeholder  
+    // Right panel - Output area with validation panel
     rightPanel.innerHTML = `
       <div style="padding: var(--spacing-md); height: 100%; display: flex; flex-direction: column;">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--spacing-md);">
-          <h2 style="margin: 0; font-size: var(--font-size-md); color: var(--color-text-primary);">
-            Output
-          </h2>
-          <div style="display: flex; gap: var(--spacing-sm);">
-            <button style="padding: var(--spacing-xs) var(--spacing-sm); background: var(--color-bg-tertiary); border: 1px solid var(--color-border-default); border-radius: var(--border-radius-sm); color: var(--color-text-primary); cursor: pointer;">
-              Text
-            </button>
-            <button style="padding: var(--spacing-xs) var(--spacing-sm); background: var(--color-interactive-tree); border: none; border-radius: var(--border-radius-sm); color: var(--color-text-inverse); cursor: pointer;">
-              Interactive
-            </button>
-          </div>
-        </div>
-        <div style="
+        <div data-role="output" style="
           flex: 1; 
           background: var(--color-bg-primary); 
           border: 1px solid var(--color-border-default); 
           border-radius: var(--border-radius-md); 
-          padding: var(--spacing-md); 
-          font-family: var(--font-family-mono); 
-          font-size: var(--font-size-sm);
-          color: var(--color-text-secondary);
+          overflow: hidden;
+          min-height: 0;
           display: flex;
-          align-items: center;
-          justify-content: center;
+          flex-direction: column;
+          margin-bottom: var(--spacing-md);
         ">
-          <div style="text-align: center;">
-            <div style="font-size: var(--font-size-lg); margin-bottom: var(--spacing-sm); color: var(--color-text-muted);">
-              ⚡
-            </div>
-            <div>Ready to parse your data</div>
-            <div style="font-size: var(--font-size-xs); margin-top: var(--spacing-xs); color: var(--color-text-muted);">
-              Supports JSON, CSV, XML and more
+          <div style="
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-md);
+            color: var(--color-text-secondary);
+          ">
+            <div style="text-align: center;">
+              <div style="font-size: var(--font-size-lg); margin-bottom: var(--spacing-sm); color: var(--color-text-muted);">
+                ⚡
+              </div>
+              <div>Ready to parse your data</div>
+              <div style="font-size: var(--font-size-xs); margin-top: var(--spacing-xs); color: var(--color-text-muted);">
+                Supports JSON, CSV, XML and more
+              </div>
             </div>
           </div>
+        </div>
+        <div id="validation-container" style="
+          flex: 0 0 auto;
+          max-height: 200px;
+          border: 1px solid var(--color-border-default);
+          border-radius: var(--border-radius-md);
+          overflow: hidden;
+        ">
+          <!-- Validation panel will be inserted here -->
         </div>
       </div>
     `;

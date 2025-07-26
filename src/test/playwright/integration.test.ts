@@ -6,18 +6,22 @@ test.describe('Integration Tests - All Components Working Together', () => {
   test.beforeAll(async ({ page }) => {
     await page.goto('/');
     
-    // Load all necessary modules
+    // Load all necessary modules including new CSV and XML parsers
     modules = await page.evaluate(() => {
       return Promise.all([
         import('/src/core/formatters/index.ts'),
         import('/src/core/formatters/JsonParser.ts'),
+        import('/src/core/formatters/CsvParser.ts'),
+        import('/src/core/formatters/XmlParser.ts'),
         import('/src/core/formatters/FormatRegistry.ts'),
         import('/src/core/formatters/FormatDetector.ts'),
         import('/src/core/formatters/PerformanceOptimizer.ts')
-      ]).then(([indexModule, parserModule, registryModule, detectorModule, optimizerModule]) => ({
+      ]).then(([indexModule, jsonModule, csvModule, xmlModule, registryModule, detectorModule, optimizerModule]) => ({
         initializeFormatters: indexModule.initializeFormatters,
         getFormatterStats: indexModule.getFormatterStats,
-        JsonParser: parserModule.JsonParser,
+        JsonParser: jsonModule.JsonParser,
+        CsvParser: csvModule.CsvParser,
+        XmlParser: xmlModule.XmlParser,
         FormatRegistry: registryModule.FormatRegistry,
         formatRegistry: registryModule.formatRegistry,
         FormatDetector: detectorModule.FormatDetector,
@@ -56,29 +60,61 @@ test.describe('Integration Tests - All Components Working Together', () => {
         };
       });
 
-      expect(result.stats.registry.registeredParsers).toBeGreaterThan(0);
-      expect(result.registeredFormats).toContain('json');
+      expect(result.stats.registry.registeredParsers).toBe(3); // JSON, CSV, XML
+      expect(result.registeredFormats).toContain('JSON');
+      expect(result.registeredFormats).toContain('CSV');
+      expect(result.registeredFormats).toContain('XML');
       expect(result.detectorCacheStats.size).toBe(0); // Fresh cache
       expect(result.performanceMetrics.availableWorkers).toBeGreaterThan(0);
     });
 
-    test('should have JSON parser properly registered', async ({ page }) => {
+    test('should have all parsers properly registered', async ({ page }) => {
       const result = await page.evaluate(() => {
         const modules = (window as any).testModules;
         
-        const jsonParser = modules.formatRegistry.getParser('json');
+        const jsonParser = modules.formatRegistry.getParserByName('JSON');
+        const csvParser = modules.formatRegistry.getParserByName('CSV');
+        const xmlParser = modules.formatRegistry.getParserByName('XML');
+        
         return {
-          hasJsonParser: !!jsonParser,
-          parserName: jsonParser?.name,
-          extensions: jsonParser?.extensions,
-          mimeTypes: jsonParser?.mimeTypes
+          json: {
+            hasParser: !!jsonParser,
+            name: jsonParser?.name,
+            extensions: jsonParser?.extensions,
+            mimeTypes: jsonParser?.mimeTypes
+          },
+          csv: {
+            hasParser: !!csvParser,
+            name: csvParser?.name,
+            extensions: csvParser?.extensions,
+            mimeTypes: csvParser?.mimeTypes
+          },
+          xml: {
+            hasParser: !!xmlParser,
+            name: xmlParser?.name,
+            extensions: xmlParser?.extensions,
+            mimeTypes: xmlParser?.mimeTypes
+          }
         };
       });
 
-      expect(result.hasJsonParser).toBe(true);
-      expect(result.parserName).toBe('JSON');
-      expect(result.extensions).toContain('json');
-      expect(result.mimeTypes).toContain('application/json');
+      // JSON Parser
+      expect(result.json.hasParser).toBe(true);
+      expect(result.json.name).toBe('JSON');
+      expect(result.json.extensions).toContain('json');
+      expect(result.json.mimeTypes).toContain('application/json');
+
+      // CSV Parser
+      expect(result.csv.hasParser).toBe(true);
+      expect(result.csv.name).toBe('CSV');
+      expect(result.csv.extensions).toContain('csv');
+      expect(result.csv.mimeTypes).toContain('text/csv');
+
+      // XML Parser
+      expect(result.xml.hasParser).toBe(true);
+      expect(result.xml.name).toBe('XML');
+      expect(result.xml.extensions).toContain('xml');
+      expect(result.xml.mimeTypes).toContain('application/xml');
     });
   });
 

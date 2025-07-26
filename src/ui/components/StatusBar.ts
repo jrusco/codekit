@@ -1,7 +1,7 @@
 // Status bar component with format detection indicators
 
-import { BaseComponent } from '@/ui/components/BaseComponent';
-import type { DetectionResult, ParseMetadata } from '@/types/core';
+import { BaseComponent } from './BaseComponent';
+import type { DetectionResult, ParseMetadata } from '../../types/core';
 
 /**
  * Status bar data interface

@@ -72,3 +72,192 @@ export interface SessionData {
   readonly renderMode: RenderMode;
   readonly timestamp: number;
 }
+
+// === CSV Format Types ===
+
+/**
+ * Detected data type for CSV cells
+ */
+export type CsvCellType = 'string' | 'number' | 'boolean' | 'date' | 'null';
+
+/**
+ * Individual CSV row with typed data
+ */
+export interface CsvRow {
+  readonly index: number;
+  readonly cells: CsvCell[];
+  readonly isValid: boolean;
+  readonly errors: string[];
+}
+
+/**
+ * Individual CSV cell with type information
+ */
+export interface CsvCell {
+  readonly value: string | number | boolean | Date | null;
+  readonly rawValue: string;
+  readonly type: CsvCellType;
+  readonly columnIndex: number;
+}
+
+/**
+ * CSV column metadata for type inference and validation
+ */
+export interface CsvColumn {
+  readonly name: string;
+  readonly index: number;
+  readonly inferredType: CsvCellType;
+  readonly typeConfidence: number;
+  readonly nullable: boolean;
+  readonly samples: string[];
+}
+
+/**
+ * Parsed CSV data structure with metadata
+ */
+export interface CsvData {
+  readonly headers: string[];
+  readonly columns: CsvColumn[];
+  readonly rows: CsvRow[];
+  readonly metadata: CsvMetadata;
+}
+
+/**
+ * CSV parsing metadata
+ */
+export interface CsvMetadata {
+  readonly delimiter: string;
+  readonly hasHeaders: boolean;
+  readonly rowCount: number;
+  readonly columnCount: number;
+  readonly encoding: string;
+  readonly lineEnding: '\n' | '\r\n' | '\r';
+  readonly quoteChar: string;
+  readonly escapeChar: string;
+}
+
+// === XML Format Types ===
+
+/**
+ * XML node types for DOM-like structure
+ */
+export type XmlNodeType = 'element' | 'text' | 'comment' | 'cdata' | 'processing-instruction';
+
+/**
+ * XML attribute with namespace support
+ */
+export interface XmlAttribute {
+  readonly name: string;
+  readonly value: string;
+  readonly namespace?: string;
+  readonly prefix?: string;
+}
+
+/**
+ * XML node in DOM-like tree structure
+ */
+export interface XmlNode {
+  readonly type: XmlNodeType;
+  readonly name: string;
+  readonly value?: string;
+  readonly attributes: XmlAttribute[];
+  readonly children: XmlNode[];
+  readonly parent?: XmlNode;
+  readonly namespace?: string;
+  readonly prefix?: string;
+}
+
+/**
+ * XML declaration information
+ */
+export interface XmlDeclaration {
+  readonly version: string;
+  readonly encoding?: string;
+  readonly standalone?: boolean;
+}
+
+/**
+ * Parsed XML document structure
+ */
+export interface XmlDocument {
+  readonly declaration?: XmlDeclaration;
+  readonly root: XmlNode;
+  readonly namespaces: Map<string, string>;
+  readonly processingInstructions: XmlNode[];
+  readonly comments: XmlNode[];
+}
+
+// === Enhanced Format Parser Types ===
+
+/**
+ * CSV validation configuration for comprehensive linting
+ * Similar to Spring Boot's @ConfigurationProperties pattern
+ */
+export interface CsvValidationConfig {
+  readonly enableDataQualityChecks: boolean;
+  readonly enableSecurityValidation: boolean;
+  readonly enablePerformanceWarnings: boolean;
+  readonly enableEncodingValidation: boolean;
+  readonly enableHeaderValidation: boolean;
+  readonly maxFileSize: number; // in bytes
+  readonly maxRowCount: number;
+  readonly maxColumnCount: number;
+  readonly checkCsvInjection: boolean;
+  readonly validateDataTypes: boolean;
+  readonly strictDelimiterConsistency: boolean;
+  readonly warnOnMixedLineEndings: boolean;
+}
+
+/**
+ * CSV validation profiles for different use cases
+ */
+export type CsvValidationProfile = 'strict' | 'lenient' | 'security-focused' | 'performance-focused' | 'custom';
+
+/**
+ * XML validation configuration for comprehensive linting
+ * Enterprise-grade XML validation following security and performance best practices
+ */
+export interface XmlValidationConfig {
+  readonly enableSyntaxValidation: boolean;
+  readonly enableStructureValidation: boolean;
+  readonly enableSecurityValidation: boolean;
+  readonly enablePerformanceWarnings: boolean;
+  readonly enableQualityLinting: boolean;
+  readonly maxFileSize: number; // in bytes
+  readonly maxNestingDepth: number;
+  readonly maxAttributeCount: number;
+  readonly maxEntityExpansions: number;
+  readonly checkXxeRisks: boolean;
+  readonly validateNamespaces: boolean;
+  readonly requireXmlDeclaration: boolean;
+  readonly warnOnMissingNamespaces: boolean;
+  readonly checkNamingConventions: boolean;
+  readonly validateDtdDeclarations: boolean;
+  readonly maxTextContentLength: number;
+}
+
+/**
+ * XML validation profiles for different use cases
+ */
+export type XmlValidationProfile = 'strict' | 'lenient' | 'security-focused' | 'performance-focused' | 'custom';
+
+/**
+ * Format-specific parser configuration
+ */
+export interface FormatParserConfig {
+  readonly csv?: {
+    delimiter?: string;
+    hasHeaders?: boolean;
+    quoteChar?: string;
+    escapeChar?: string;
+    skipEmptyLines?: boolean;
+    validation?: Partial<CsvValidationConfig>;
+  };
+  readonly xml?: {
+    preserveWhitespace?: boolean;
+    validateStructure?: boolean;
+    resolveNamespaces?: boolean;
+    includeComments?: boolean;
+    validation?: Partial<XmlValidationConfig>;
+  };
+}
