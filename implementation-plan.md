@@ -86,11 +86,11 @@ Achieve competitive parity with JSON.pub through comprehensive multi-format supp
    - Implement linting rules for CSV inputs
    - Format validation engine with user-friendly, specific error and location messages
    - Performance benchmarks for large files
-4. **XML Error linting and format validation** (P0, 2-3 hours)
+4. **XML Error linting and format validation** (P0, 2-3 hours) ⚠️ (minor false positive)
    - Implement linting rules for XML inputs
    - Format validation engine with user-friendly, specific error and location messages
    - Performance benchmarks for large files
-5. **Interactive Data Visualization** (P0, 1-2 hours)
+5. **Interactive Data Visualization** (P0, 1-2 hours) ⚠️ (reverted, needs specs overhaul)
    - JSON tree renderer with expand/collapse controls
    - CSV table renderer with sorting by column
 
@@ -154,6 +154,7 @@ Achieve enterprise-grade quality with comprehensive testing, production optimiza
 
 #### Tasks
 1. **Comprehensive Testing Suite** (P1, 3-4 hours)
+   - Address false positive case for XML linting. Valid XML should not throw a warning when starting characters are "<?".
    - Multi-format unit testing with edge cases
    - Interactive rendering performance testing
    - Cross-browser compatibility verification
