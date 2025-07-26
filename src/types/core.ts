@@ -214,6 +214,34 @@ export interface CsvValidationConfig {
 export type CsvValidationProfile = 'strict' | 'lenient' | 'security-focused' | 'performance-focused' | 'custom';
 
 /**
+ * XML validation configuration for comprehensive linting
+ * Enterprise-grade XML validation following security and performance best practices
+ */
+export interface XmlValidationConfig {
+  readonly enableSyntaxValidation: boolean;
+  readonly enableStructureValidation: boolean;
+  readonly enableSecurityValidation: boolean;
+  readonly enablePerformanceWarnings: boolean;
+  readonly enableQualityLinting: boolean;
+  readonly maxFileSize: number; // in bytes
+  readonly maxNestingDepth: number;
+  readonly maxAttributeCount: number;
+  readonly maxEntityExpansions: number;
+  readonly checkXxeRisks: boolean;
+  readonly validateNamespaces: boolean;
+  readonly requireXmlDeclaration: boolean;
+  readonly warnOnMissingNamespaces: boolean;
+  readonly checkNamingConventions: boolean;
+  readonly validateDtdDeclarations: boolean;
+  readonly maxTextContentLength: number;
+}
+
+/**
+ * XML validation profiles for different use cases
+ */
+export type XmlValidationProfile = 'strict' | 'lenient' | 'security-focused' | 'performance-focused' | 'custom';
+
+/**
  * Format-specific parser configuration
  */
 export interface FormatParserConfig {
@@ -230,5 +258,6 @@ export interface FormatParserConfig {
     validateStructure?: boolean;
     resolveNamespaces?: boolean;
     includeComments?: boolean;
+    validation?: Partial<XmlValidationConfig>;
   };
 }
