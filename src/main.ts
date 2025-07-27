@@ -9,6 +9,9 @@ import { initializeDefaultShortcuts } from './ui/components/KeyboardShortcuts';
 import { PerformanceMonitor } from './utils/performance';
 import { initializeFormatters } from './core/formatters/index.ts';
 import { parseManager } from './ui/components/ParseManager.ts';
+import { sessionManager } from './core/session/SessionManager.ts';
+import { crossTabManager } from './core/session/CrossTabManager.ts';
+import { showRecoveryModal } from './ui/components/RecoveryModal.ts';
 
 /**
  * Main application class - similar to Spring Boot's @SpringBootApplication
@@ -25,6 +28,7 @@ class CodeKitApplication {
     this.initializeLayout();
     this.initializeComponents();
     this.initializeKeyboardShortcuts();
+    this.initializeSessionManagement();
     this.setupPerformanceMonitoring();
   }
 
@@ -243,6 +247,134 @@ class CodeKitApplication {
     initializeDefaultShortcuts();
     
     endTiming();
+  }
+
+  /**
+   * Initialize session management system
+   */
+  private initializeSessionManagement(): void {
+    const endTiming = this.performanceMonitor.startTiming('Application.initializeSessionManagement');
+    
+    try {
+      // Initialize cross-tab manager first
+      const tabCount = crossTabManager.getActiveTabCount();
+      console.log(`✅ Cross-tab manager initialized (${tabCount} active tabs)`);
+      
+      // Check for existing session and show recovery modal if needed
+      this.checkForSessionRecovery();
+      
+      // Setup global keyboard shortcuts for session management
+      this.setupSessionKeyboardShortcuts();
+      
+      console.log('✅ Session management initialized successfully');
+    } catch (error) {
+      console.error('❌ Failed to initialize session management:', error);
+      // Don't throw - session management is not critical for basic functionality
+    }
+    
+    endTiming();
+  }
+
+  /**
+   * Check for existing session and clean up old sessions
+   */
+  private checkForSessionRecovery(): void {
+    // Wait for DOM to be fully ready
+    setTimeout(() => {
+      const existingSession = sessionManager.load();
+      
+      if (existingSession && existingSession.content.trim()) {
+        const sessionAge = Date.now() - existingSession.timestamp;
+        const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+        
+        // Clear old sessions automatically
+        if (sessionAge >= maxAge) {
+          sessionManager.clear();
+          console.log('Cleared old session (>24h)');
+        } else {
+          console.log('Found recent session, ParseManager will handle restoration');
+        }
+      }
+    }, 100); // Reduced delay since we're not showing modal
+  }
+
+  /**
+   * Setup keyboard shortcuts for session management
+   */
+  private setupSessionKeyboardShortcuts(): void {
+    document.addEventListener('keydown', (event) => {
+      // Only handle shortcuts when not in an input field
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+      
+      if (event.ctrlKey || event.metaKey) {
+        switch (event.key) {
+          case 's':
+            event.preventDefault();
+            parseManager.forceSave();
+            this.showSaveNotification();
+            break;
+          case 'r':
+            if (event.shiftKey) {
+              event.preventDefault();
+              this.showSessionRecovery();
+            }
+            break;
+        }
+      }
+    });
+  }
+
+  /**
+   * Show save notification
+   */
+  private showSaveNotification(): void {
+    // Create temporary notification
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--color-success);
+      color: white;
+      padding: var(--spacing-sm) var(--spacing-md);
+      border-radius: var(--border-radius-sm);
+      z-index: 10000;
+      font-size: var(--font-size-sm);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      transition: opacity 0.3s ease;
+    `;
+    notification.textContent = '💾 Session saved';
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 2 seconds
+    setTimeout(() => {
+      notification.style.opacity = '0';
+      setTimeout(() => {
+        document.body.removeChild(notification);
+      }, 300);
+    }, 2000);
+  }
+
+  /**
+   * Show session recovery manually
+   */
+  private showSessionRecovery(): void {
+    const existingSession = sessionManager.load();
+    if (existingSession && existingSession.content.trim()) {
+      showRecoveryModal(
+        existingSession,
+        () => {
+          console.log('Manual session restore');
+        },
+        () => {
+          sessionManager.clear();
+          console.log('Manual session clear');
+        }
+      );
+    }
   }
 
   /**

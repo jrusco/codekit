@@ -71,6 +71,44 @@ export interface SessionData {
   readonly format: string;
   readonly renderMode: RenderMode;
   readonly timestamp: number;
+  readonly preferences?: UserPreferences;
+}
+
+/**
+ * User preferences for session management - similar to Spring Boot's @ConfigurationProperties
+ */
+export interface UserPreferences {
+  readonly autoSave: boolean;
+  readonly autoSaveInterval: number; // in milliseconds
+  readonly theme: 'dark' | 'light';
+  readonly rememberInputFormat: boolean;
+  readonly enableCrossTabSync: boolean;
+  readonly compressionEnabled: boolean;
+}
+
+/**
+ * Session validation result
+ */
+export interface SessionValidationResult {
+  readonly isValid: boolean;
+  readonly errors: string[];
+  readonly warnings: string[];
+}
+
+/**
+ * Cross-tab sync message types
+ */
+export type CrossTabMessageType = 'session-update' | 'session-request' | 'session-response' | 'preferences-update';
+
+/**
+ * Cross-tab synchronization message
+ */
+export interface CrossTabMessage {
+  readonly type: CrossTabMessageType;
+  readonly sessionId: string;
+  readonly timestamp: number;
+  readonly data?: SessionData | UserPreferences;
+  readonly senderId: string;
 }
 
 // === CSV Format Types ===

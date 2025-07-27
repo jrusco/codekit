@@ -1,7 +1,10 @@
 // Parse Manager - Connects UI to multi-format parsers
 import { formatDetector } from '../../core/formatters/FormatDetector.ts';
 import { formatRegistry } from '../../core/formatters/FormatRegistry.ts';
-import type { ParseResult, DetectionResult, ValidationError } from '../../types/core.ts';
+import type { ParseResult, DetectionResult, ValidationError, SessionData, RenderMode } from '../../types/core.ts';
+import { sessionManager } from '../../core/session/SessionManager.ts';
+import { userPreferencesManager } from '../../core/session/UserPreferences.ts';
+import { crossTabManager } from '../../core/session/CrossTabManager.ts';
 
 /**
  * Interface for status bar data
@@ -29,9 +32,12 @@ export class ParseManager {
   private currentContent = '';
   private currentResult: ParseResult<any> | null = null;
   private currentDetection: DetectionResult | null = null;
+  private autoSaveTimer: number | null = null;
+  private currentRenderMode: RenderMode = 'interactive';
 
   constructor() {
     this.bindToUI();
+    this.initializeSessionManagement();
   }
 
   /**
@@ -84,8 +90,15 @@ export class ParseManager {
       this.handleInputChange();
     }, 500));
 
+    // Auto-save on input change (separate from parsing)
+    this.inputElement.addEventListener('input', this.debounce(() => {
+      this.handleAutoSave();
+    }, 1000)); // Use fixed 1 second debounce for simplicity
 
-
+    // Handle paste events for better UX
+    this.inputElement.addEventListener('paste', () => {
+      setTimeout(() => this.handleInputChange(), 100);
+    });
   }
 
   /**
@@ -586,6 +599,246 @@ export class ParseManager {
     this.validationCallback = callback;
   }
 
+  /**
+   * Initialize session management system
+   */
+  private initializeSessionManagement(): void {
+    // Load saved session on startup (after a brief delay to ensure DOM is ready)
+    setTimeout(() => {
+      this.loadSession();
+    }, 200);
+    
+    // Listen for cross-tab session updates
+    crossTabManager.addListener('session-update', (sessionData: SessionData) => {
+      this.restoreSession(sessionData);
+    });
+    
+    // Listen for preference changes
+    userPreferencesManager.addChangeListener((preferences) => {
+      this.handlePreferencesChange(preferences);
+    });
+    
+    // Handle page visibility changes for session recovery
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        this.checkForSessionRecovery();
+      }
+    });
+    
+    // Handle before unload for final auto-save
+    window.addEventListener('beforeunload', () => {
+      this.performFinalSave();
+    });
+  }
+
+  /**
+   * Handle auto-save functionality
+   */
+  private handleAutoSave(): void {
+    // Check if auto-save is enabled (default to true if preferences not available)
+    try {
+      if (!userPreferencesManager.isAutoSaveEnabled()) {
+        return;
+      }
+    } catch (error) {
+      // If userPreferencesManager is not available, default to auto-save enabled
+      console.warn('UserPreferencesManager not available, defaulting to auto-save enabled');
+    }
+
+    // Clear existing timer
+    if (this.autoSaveTimer) {
+      clearTimeout(this.autoSaveTimer);
+    }
+
+    // Set new timer
+    this.autoSaveTimer = window.setTimeout(() => {
+      this.saveCurrentSession();
+    }, 1000); // Save 1 second after last input
+  }
+
+  /**
+   * Save current session data
+   */
+  private saveCurrentSession(): void {
+    if (!this.inputElement || !this.currentContent.trim()) {
+      return;
+    }
+
+    try {
+      const sessionData: SessionData = {
+        content: this.currentContent,
+        format: this.currentDetection?.format || 'unknown',
+        renderMode: this.currentRenderMode,
+        timestamp: Date.now(),
+        preferences: userPreferencesManager.getPreferences()
+      };
+
+      sessionManager.save(sessionData);
+      
+      // Broadcast to other tabs if cross-tab sync is enabled
+      try {
+        if (userPreferencesManager.isCrossTabSyncEnabled()) {
+          crossTabManager.broadcastSessionUpdate(sessionData);
+        }
+      } catch (error) {
+        // Cross-tab sync not available, continue without it
+        console.warn('Cross-tab sync not available');
+      }
+      
+    } catch (error) {
+      console.error('Failed to save session:', error);
+    }
+  }
+
+  /**
+   * Load session on application startup
+   */
+  private loadSession(): void {
+    try {
+      const sessionData = sessionManager.load();
+      if (sessionData && sessionData.content) {
+        console.log('Loading session with content:', sessionData.content.substring(0, 50) + '...');
+        this.restoreSession(sessionData);
+      } else {
+        console.log('No session data to restore');
+      }
+    } catch (error) {
+      console.error('Failed to load session:', error);
+    }
+  }
+
+  /**
+   * Restore session data to UI
+   */
+  private restoreSession(sessionData: SessionData): void {
+    if (!this.inputElement) {
+      // Retry after DOM is ready
+      setTimeout(() => this.restoreSession(sessionData), 100);
+      return;
+    }
+
+    try {
+      // Restore content
+      this.inputElement.value = sessionData.content;
+      this.currentContent = sessionData.content;
+      this.currentRenderMode = sessionData.renderMode;
+
+      // Trigger parsing to update the UI
+      this.handleInputChange();
+      
+      console.log('Session restored successfully:', sessionData.content.substring(0, 50) + '...');
+    } catch (error) {
+      console.error('Failed to restore session:', error);
+    }
+  }
+
+  /**
+   * Check for session recovery on page visibility change
+   */
+  private checkForSessionRecovery(): void {
+    // Request session sync from other tabs if we don't have content
+    try {
+      if (!this.currentContent.trim() && userPreferencesManager.isCrossTabSyncEnabled()) {
+        crossTabManager.requestSessionSync();
+      }
+    } catch (error) {
+      // Cross-tab sync not available
+      console.warn('Cross-tab sync not available for session recovery');
+    }
+  }
+
+  /**
+   * Handle user preferences changes
+   */
+  private handlePreferencesChange(preferences: any): void {
+    // Update auto-save behavior
+    if (!preferences.autoSave && this.autoSaveTimer) {
+      clearTimeout(this.autoSaveTimer);
+      this.autoSaveTimer = null;
+    }
+    
+    // Other preference-based updates can be added here
+  }
+
+  /**
+   * Perform final save before page unload
+   */
+  private performFinalSave(): void {
+    try {
+      if (this.currentContent.trim() && userPreferencesManager.isAutoSaveEnabled()) {
+        this.saveCurrentSession();
+      }
+    } catch (error) {
+      // If preferences not available, save anyway
+      if (this.currentContent.trim()) {
+        this.saveCurrentSession();
+      }
+    }
+  }
+
+  /**
+   * Force save current session (public API)
+   */
+  public forceSave(): void {
+    this.saveCurrentSession();
+  }
+
+  /**
+   * Clear current session
+   */
+  public clearSession(): void {
+    try {
+      sessionManager.clear();
+      
+      if (this.inputElement) {
+        this.inputElement.value = '';
+      }
+      
+      this.currentContent = '';
+      this.currentResult = null;
+      this.currentDetection = null;
+      
+      this.showEmptyState();
+      this.updateStatus();
+      
+    } catch (error) {
+      console.error('Failed to clear session:', error);
+    }
+  }
+
+  /**
+   * Get current session data (for debugging/export)
+   */
+  public getCurrentSession(): SessionData | null {
+    if (!this.currentContent.trim()) {
+      return null;
+    }
+
+    return {
+      content: this.currentContent,
+      format: this.currentDetection?.format || 'unknown',
+      renderMode: this.currentRenderMode,
+      timestamp: Date.now(),
+      preferences: userPreferencesManager.getPreferences()
+    };
+  }
+
+  /**
+   * Set render mode
+   */
+  public setRenderMode(mode: RenderMode): void {
+    this.currentRenderMode = mode;
+    if (this.currentResult) {
+      this.displayResult(); // Re-render with new mode
+    }
+  }
+
+  /**
+   * Get current render mode
+   */
+  public getRenderMode(): RenderMode {
+    return this.currentRenderMode;
+  }
 
   /**
    * Debounce utility
