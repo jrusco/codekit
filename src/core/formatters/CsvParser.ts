@@ -15,6 +15,7 @@ import type {
   CsvValidationConfig,
   CsvValidationProfile
 } from '../../types/core.ts';
+import { SecurityManager, SecurityError } from '../security/SecurityManager.js';
 
 /**
  * Production-ready CSV parser with advanced features
@@ -192,6 +193,59 @@ export class CsvParser implements FormatParser<CsvData> {
    */
   parse(content: string, config?: FormatParserConfig): ParseResult<CsvData> {
     const startTime = performance.now();
+    const securityManager = SecurityManager.getInstance();
+    
+    try {
+      // Security validation - sanitize input before processing
+      const sanitizedContent = securityManager.sanitizeInput(content, 'csv');
+      
+      if (sanitizedContent !== content) {
+        console.warn('CSV input was sanitized for security reasons');
+      }
+      
+      content = sanitizedContent;
+    } catch (securityError) {
+      if (securityError instanceof SecurityError) {
+        const userFriendlyError = securityManager.sanitizeErrorMessage(securityError);
+        return {
+          isValid: false,
+          data: { 
+            headers: [], 
+            rows: [], 
+            columns: [], 
+            metadata: { 
+              totalRows: 0, 
+              totalColumns: 0, 
+              encoding: 'utf-8', 
+              delimiter: ',',
+              hasHeaders: false,
+              rowCount: 0,
+              columnCount: 0,
+              lineEnding: '\n' as const,
+              quoteChar: '"',
+              escapeChar: '\\'
+            } 
+          },
+          errors: [{
+            message: userFriendlyError.message,
+            line: 1,
+            column: 1,
+            code: 'SECURITY_ERROR',
+            severity: 'error' as const,
+            type: 'security',
+            context: userFriendlyError.suggestion || ''
+          }],
+          metadata: {
+            parseTime: performance.now() - startTime,
+            fileSize: new Blob([content]).size,
+            format: 'csv',
+            confidence: 0
+          }
+        };
+      }
+      throw securityError;
+    }
+    
     const fileSize = new Blob([content]).size;
     
     try {

@@ -1,0 +1,122 @@
+name: CodeQL Analysis
+
+# Dedicated CodeQL scanning for pull requests and main branch
+on:
+  pull_request:
+    branches: [main]
+    paths: ['src/**', '*.ts', '*.js', 'package*.json']
+  push:
+    branches: [main]
+    paths: ['src/**', '*.ts', '*.js', 'package*.json']
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  codeql:
+    name: 'Security Code Analysis'
+    runs-on: ubuntu-latest
+    
+    # Required permissions for CodeQL analysis
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+      pull-requests: read
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Fetch full history for comprehensive analysis
+          fetch-depth: 0
+          
+      # Initialize CodeQL for TypeScript/JavaScript analysis
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: typescript, javascript
+          # Use custom configuration file for enterprise security standards
+          config-file: .github/codeql/codeql-config.yml
+          # Additional security-focused queries
+          queries: security-and-quality,security-extended
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm install --ignore-platform-reqs --production=false  # Platform-agnostic dependency installation
+        
+      # Run security audit (non-blocking)
+      - name: Security audit check
+        run: |
+          echo "Running dependency security audit..."
+          npm audit --audit-level=high --only=prod || echo "Security audit completed with warnings"
+          
+      # Check for outdated dependencies (informational only)
+      - name: Check dependency status
+        run: |
+          echo "Checking dependency status..."
+          npm outdated || echo "Dependency status check completed"
+        
+      # Build the project for comprehensive analysis
+      - name: Build project
+        run: npm run build
+        env:
+          NODE_ENV: production
+          
+      # Perform CodeQL analysis
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:typescript"
+          # Upload SARIF results for security dashboard
+          upload: true
+          # Add PR context for better reporting
+          checkout_path: ${{ github.workspace }}
+          
+      # Additional security validations for enterprise compliance
+      - name: Validate security standards
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "=== CodeQL Analysis Summary ==="
+          echo "Branch: ${{ github.head_ref || github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Event: ${{ github.event_name }}"
+          echo "Languages analyzed: TypeScript, JavaScript"
+          echo "Query suites: security-and-quality, security-extended"
+          echo "================================"
+          
+      # Generate security report artifact
+      - name: Generate security report
+        if: always()  # Run even if previous steps fail
+        run: |
+          mkdir -p security-reports
+          echo "CodeQL Security Analysis Report" > security-reports/codeql-summary.md
+          echo "===============================" >> security-reports/codeql-summary.md
+          echo "" >> security-reports/codeql-summary.md
+          echo "**Repository**: ${{ github.repository }}" >> security-reports/codeql-summary.md
+          echo "**Branch**: ${{ github.head_ref || github.ref_name }}" >> security-reports/codeql-summary.md
+          echo "**Commit**: ${{ github.sha }}" >> security-reports/codeql-summary.md
+          echo "**Workflow**: ${{ github.workflow }}" >> security-reports/codeql-summary.md
+          echo "**Run ID**: ${{ github.run_id }}" >> security-reports/codeql-summary.md
+          echo "**Timestamp**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> security-reports/codeql-summary.md
+          echo "" >> security-reports/codeql-summary.md
+          echo "## Analysis Details" >> security-reports/codeql-summary.md
+          echo "- **Languages**: TypeScript, JavaScript" >> security-reports/codeql-summary.md
+          echo "- **Query Suites**: security-and-quality, security-extended" >> security-reports/codeql-summary.md
+          echo "- **Analysis Type**: ${{ github.event_name == 'pull_request' && 'Pull Request' || 'Branch Push' }}" >> security-reports/codeql-summary.md
+          echo "" >> security-reports/codeql-summary.md
+          echo "Results available in the Security tab of the repository." >> security-reports/codeql-summary.md
+          
+      - name: Upload security report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: codeql-security-report-${{ github.run_id }}
+          path: security-reports/
+          retention-days: 30

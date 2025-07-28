@@ -13,6 +13,7 @@ import type {
   XmlValidationConfig,
   XmlValidationProfile
 } from '../../types/core.ts';
+import { SecurityManager, SecurityError } from '../security/SecurityManager.js';
 
 /**
  * Production-ready XML parser with comprehensive namespace support
@@ -225,6 +226,48 @@ export class XmlParser implements FormatParser<XmlDocument> {
    */
   parse(content: string, config?: FormatParserConfig): ParseResult<XmlDocument> {
     const startTime = performance.now();
+    const securityManager = SecurityManager.getInstance();
+    
+    try {
+      // Security validation - sanitize input before processing
+      const sanitizedContent = securityManager.sanitizeInput(content, 'xml');
+      
+      if (sanitizedContent !== content) {
+        console.warn('XML input was sanitized for security reasons');
+      }
+      
+      content = sanitizedContent;
+    } catch (securityError) {
+      if (securityError instanceof SecurityError) {
+        const userFriendlyError = securityManager.sanitizeErrorMessage(securityError);
+        return {
+          isValid: false,
+          data: { 
+            declaration: undefined, 
+            root: { type: 'element', name: 'error', value: undefined, attributes: [], children: [], namespace: undefined, prefix: undefined }, 
+            processingInstructions: [], 
+            comments: [],
+            namespaces: new Map()
+          },
+          errors: [{
+            message: userFriendlyError.message,
+            line: 1,
+            column: 1,
+            code: 'SECURITY_ERROR',
+            severity: 'error' as const,
+            type: 'security'
+          }],
+          metadata: {
+            parseTime: performance.now() - startTime,
+            fileSize: new Blob([content]).size,
+            format: 'xml',
+            confidence: 0
+          }
+        };
+      }
+      throw securityError;
+    }
+    
     const fileSize = new Blob([content]).size;
     
     try {

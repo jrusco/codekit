@@ -1,0 +1,134 @@
+name: Security Audit
+
+# When to run this workflow
+on:
+  # Run weekly on Mondays at 6 AM
+  schedule:
+    - cron: '0 6 * * 1'
+  # Allow manual triggering
+  workflow_dispatch:
+  # Also run on pushes to main
+  push:
+    branches: [main]
+  # Run on pull requests to main for security scanning
+  pull_request:
+    branches: [main]
+    paths: ['src/**', '*.ts', '*.js', 'package*.json', '.github/workflows/**']
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  dependency-audit:
+    name: 'Dependency Security Audit'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm install --ignore-platform-reqs --production=false  # Platform-agnostic dependency installation
+        
+      # Check for known vulnerabilities in dependencies
+      - name: Run npm audit
+        run: |
+          echo "Running npm audit..."
+          npm audit --audit-level=moderate
+          
+      # Generate security report
+      - name: Generate dependency report
+        run: |
+          npm list --depth=0 > dependency-report.txt
+          echo "Dependencies analyzed on $(date)" >> dependency-report.txt
+          
+      - name: Upload dependency report
+        uses: actions/upload-artifact@v4
+        if: always()  # Upload even if audit fails
+        with:
+          name: dependency-report
+          path: dependency-report.txt
+          retention-days: 30
+
+  # Job 2: Code Security Analysis
+  code-security:
+    name: 'Code Security Analysis'
+    runs-on: ubuntu-latest
+    
+    # Required permissions for CodeQL
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      # Initialize CodeQL
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: typescript, javascript
+          # Custom queries for additional security checks
+          queries: security-and-quality
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm install --ignore-platform-reqs --production=false  # Platform-agnostic dependency installation
+        
+      # Run security audit (non-blocking)
+      - name: Security audit check
+        run: |
+          echo "Running dependency security audit..."
+          npm audit --audit-level=high --only=prod || echo "Security audit completed with warnings"
+          
+      # Check for outdated dependencies (informational only)
+      - name: Check dependency status
+        run: |
+          echo "Checking dependency status..."
+          npm outdated || echo "Dependency status check completed"
+        
+      # Build the project
+      - name: Build project
+        run: npm run build
+        
+      # Run CodeQL analysis
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:typescript"
+
+  # Job 3: Secrets Detection
+  secrets-scan:
+    name: 'Secrets Detection'
+    runs-on: ubuntu-latest
+    # Skip secrets scanning on PRs for performance (run on push/schedule only)
+    if: github.event_name != 'pull_request'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # Fetch full history for comprehensive scanning
+          fetch-depth: 0
+          
+      # Scan for accidentally committed secrets
+      - name: Run TruffleHog OSS
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --debug --only-verified

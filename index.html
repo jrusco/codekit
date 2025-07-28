@@ -5,33 +5,12 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CodeKit - Multi-Format Parser</title>
+    <!-- CSP will be injected here during build process -->
   </head>
   <body>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
-    <script>
-      // Auto-test UI after loading (only in development)
-      setTimeout(() => {
-        if (window.location.hostname === 'localhost') {
-          console.log('%c🧪 Running automated UI tests...', 'color: #00ff00; font-size: 14px; font-weight: bold;');
-          
-          // Load and run general UI tests
-          fetch('/automated-ui-test.js')
-            .then(response => response.text())
-            .then(code => {
-              eval(code);
-            })
-            .catch(err => console.log('UI test script not available:', err.message));
-          
-          // Load and run scrollbar-specific tests
-          fetch('/test-scrollbar.js')
-            .then(response => response.text())
-            .then(code => {
-              eval(code);
-            })
-            .catch(err => console.log('Scrollbar test script not available:', err.message));
-        }
-      }, 3000);
-    </script>
+    <!-- Development-only scripts moved to separate file for CSP compliance -->
+    <script type="module" src="/src/dev-auto-test.js"></script>
   </body>
 </html>
