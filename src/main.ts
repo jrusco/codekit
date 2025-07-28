@@ -12,6 +12,9 @@ import { parseManager } from './ui/components/ParseManager.ts';
 import { sessionManager } from './core/session/SessionManager.ts';
 import { crossTabManager } from './core/session/CrossTabManager.ts';
 import { showRecoveryModal } from './ui/components/RecoveryModal.ts';
+import { CSPManager } from './core/security/CSPManager.js';
+import { SecurityManager } from './core/security/SecurityManager.js';
+import { AnalyticsManager } from './core/analytics/AnalyticsManager.js';
 
 /**
  * Main application class - similar to Spring Boot's @SpringBootApplication
@@ -23,6 +26,8 @@ class CodeKitApplication {
   private performanceMonitor = PerformanceMonitor.getInstance();
 
   constructor() {
+    this.initializeSecurity();
+    this.initializeAnalytics();
     this.initializeFormatters();
     this.initializeTheme();
     this.initializeLayout();
@@ -30,6 +35,92 @@ class CodeKitApplication {
     this.initializeKeyboardShortcuts();
     this.initializeSessionManagement();
     this.setupPerformanceMonitoring();
+  }
+
+  /**
+   * Initialize security systems - CSP, input validation, error sanitization
+   */
+  private initializeSecurity(): void {
+    const endTiming = this.performanceMonitor.startTiming('Application.initializeSecurity');
+    
+    try {
+      // Initialize CSP Manager and validate configuration
+      const cspManager = CSPManager.getInstance();
+      const cspValidation = cspManager.validateCSP();
+      
+      if (!cspValidation.isValid) {
+        console.warn('CSP Configuration Issues:', cspValidation.violations);
+      }
+      
+      if (cspValidation.recommendations.length > 0) {
+        console.info('CSP Recommendations:', cspValidation.recommendations);
+      }
+      
+      // Initialize Security Manager with production configuration
+      SecurityManager.getInstance({
+        enableXSSProtection: true,
+        enableCSVInjectionProtection: true,
+        enablePrototypePollutionProtection: true,
+        maxInputSize: 10 * 1024 * 1024, // 10MB
+        sanitizeErrorMessages: true
+      });
+      
+      console.log('✅ Security systems initialized successfully');
+      console.log('🔒 CSP Status:', cspValidation.isValid ? 'Valid' : 'Issues detected');
+      
+    } catch (error) {
+      console.error('❌ Failed to initialize security systems:', error);
+      throw error;
+    }
+    
+    endTiming();
+  }
+
+  /**
+   * Initialize analytics system with privacy-first configuration
+   */
+  private initializeAnalytics(): void {
+    const endTiming = this.performanceMonitor.startTiming('Application.initializeAnalytics');
+    
+    try {
+      const analyticsManager = AnalyticsManager.getInstance({
+        enabled: !this.isDevelopment(),
+        hostname: window.location.hostname,
+        privacyMode: true,
+        collectIP: false,
+        respectDNT: true
+      });
+
+      // Initialize asynchronously to avoid blocking app startup
+      analyticsManager.initialize().then(() => {
+        console.log('✅ Analytics initialized successfully');
+        
+        // Track initial page view
+        analyticsManager.trackPageView();
+        
+        // Track performance metrics
+        const webVitals = this.performanceMonitor.getWebVitalsMetrics();
+        analyticsManager.trackPerformance(webVitals);
+        
+      }).catch(error => {
+        console.warn('Analytics initialization failed:', error);
+      });
+      
+    } catch (error) {
+      console.error('❌ Failed to initialize analytics:', error);
+      // Don't throw - analytics failure shouldn't break the app
+    }
+    
+    endTiming();
+  }
+
+  /**
+   * Check if in development mode
+   */
+  private isDevelopment(): boolean {
+    return window.location.hostname === 'localhost' || 
+           window.location.hostname === '127.0.0.1' ||
+           window.location.hostname.includes('dev');
   }
 
   /**

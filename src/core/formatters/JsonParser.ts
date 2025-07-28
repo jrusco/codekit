@@ -1,5 +1,6 @@
 // Advanced JSON parser with superior error reporting - exceeds JSON.pub capabilities
 import type { FormatParser, ParseResult, ValidationError, DetectionResult, ParseMetadata } from '../../types/core.ts';
+import { SecurityManager, SecurityError } from '../security/SecurityManager.js';
 
 /**
  * JSON validation rule configuration
@@ -156,6 +157,44 @@ export class JsonParser implements FormatParser<any> {
    */
   parse(content: string): ParseResult<any> {
     const startTime = performance.now();
+    const securityManager = SecurityManager.getInstance();
+    
+    try {
+      // Security validation - sanitize input before processing
+      const sanitizedContent = securityManager.sanitizeInput(content, 'json');
+      
+      if (sanitizedContent !== content) {
+        // Content was sanitized, add warning
+        console.warn('JSON input was sanitized for security reasons');
+      }
+      
+      content = sanitizedContent;
+    } catch (securityError) {
+      if (securityError instanceof SecurityError) {
+        const userFriendlyError = securityManager.sanitizeErrorMessage(securityError);
+        return {
+          isValid: false,
+          data: null,
+          errors: [{
+            message: userFriendlyError.message,
+            line: 1,
+            column: 1,
+            code: 'SECURITY_ERROR',
+            severity: 'error' as const,
+            type: 'security',
+            context: userFriendlyError.suggestion || ''
+          }],
+          metadata: {
+            parseTime: performance.now() - startTime,
+            fileSize: new Blob([content]).size,
+            format: 'json',
+            confidence: 0
+          }
+        };
+      }
+      throw securityError;
+    }
+    
     const fileSize = new Blob([content]).size;
     
     try {

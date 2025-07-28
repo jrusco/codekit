@@ -19,6 +19,8 @@ export interface ValidationError {
   readonly column?: number;
   readonly code: string;
   readonly severity: 'error' | 'warning' | 'info';
+  readonly type?: string;
+  readonly context?: string;
 }
 
 /**
@@ -172,6 +174,8 @@ export interface CsvMetadata {
   readonly lineEnding: '\n' | '\r\n' | '\r';
   readonly quoteChar: string;
   readonly escapeChar: string;
+  readonly totalRows?: number;
+  readonly totalColumns?: number;
 }
 
 // === XML Format Types ===

@@ -5,6 +5,7 @@ import type { ParseResult, DetectionResult, ValidationError, SessionData, Render
 import { sessionManager } from '../../core/session/SessionManager.ts';
 import { userPreferencesManager } from '../../core/session/UserPreferences.ts';
 import { crossTabManager } from '../../core/session/CrossTabManager.ts';
+import { AnalyticsManager } from '../../core/analytics/AnalyticsManager.js';
 
 /**
  * Interface for status bar data
@@ -115,6 +116,9 @@ export class ParseManager {
       return;
     }
 
+    const startTime = performance.now();
+    const analytics = AnalyticsManager.getInstance();
+
     try {
       // Show loading state
       this.showLoadingState();
@@ -122,11 +126,27 @@ export class ParseManager {
       // Detect format
       this.currentDetection = formatDetector.detect(content);
       
+      // Track format detection
+      analytics.trackEvent('format_detection', {
+        detected_format: this.currentDetection.format,
+        confidence: this.currentDetection.confidence,
+        input_size: content.length
+      });
+      
       // Parse content if format is detected
       if (this.currentDetection.format !== 'unknown') {
         const parser = formatRegistry.getParser(this.currentDetection.format);
         if (parser) {
           this.currentResult = parser.parse(content);
+          const parseTime = performance.now() - startTime;
+          
+          // Track parser usage
+          analytics.trackParserUsage(
+            this.currentDetection.format,
+            new Blob([content]).size,
+            parseTime,
+            this.currentResult.isValid
+          );
           
           // For CSV format, always try to display as table even with validation errors
           if (this.currentDetection.format === 'csv' && this.currentResult.data) {
@@ -150,6 +170,14 @@ export class ParseManager {
 
     } catch (error) {
       console.error('Parse error:', error);
+      
+      // Track parsing errors
+      analytics.trackError(
+        'parse_error',
+        error instanceof Error ? error.message : String(error),
+        this.currentDetection?.format || 'unknown'
+      );
+      
       // On unexpected errors, show raw input as fallback
       this.showRawInput(content);
     }
@@ -292,7 +320,7 @@ export class ParseManager {
       const severityClass = getRowSeverityClass(lineNumber);
       const classAttr = severityClass ? ` class="${severityClass}"` : '';
       
-      const cells = row.cells.map((cell: any, cellIndex: number) => {
+      const cells = row.cells.map((cell: any) => {
         const value = cell.value === null ? '<em style="color: var(--color-text-muted);">null</em>' : String(cell.value);
         const typeColor = this.getCellTypeColor(cell.type);
         

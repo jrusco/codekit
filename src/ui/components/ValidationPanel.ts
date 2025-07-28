@@ -2,6 +2,7 @@
 
 import { BaseComponent } from './BaseComponent';
 import type { ValidationError } from '../../types/core';
+import { SecurityManager } from '../../core/security/SecurityManager.js';
 
 /**
  * Validation panel data interface
@@ -156,9 +157,24 @@ export class ValidationPanel extends BaseComponent<ValidationPanelData> {
   }
 
   private escapeHtml(text: string): string {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    // Use SecurityManager for comprehensive error message sanitization
+    const securityManager = SecurityManager.getInstance();
+    
+    try {
+      // Create mock error to use the sanitization logic
+      const mockError = new Error(text);
+      const sanitizedError = securityManager.sanitizeErrorMessage(mockError);
+      
+      // Additional HTML escaping for safe DOM insertion
+      const div = document.createElement('div');
+      div.textContent = sanitizedError.message;
+      return div.innerHTML;
+    } catch (error) {
+      // Fallback to basic HTML escaping if security manager fails
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
   }
 
   private attachEventListeners(): void {

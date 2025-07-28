@@ -132,6 +132,7 @@ export type ComponentState = 'idle' | 'loading' | 'error' | 'success';
  * Keyboard shortcut definition
  */
 export interface KeyboardShortcut {
+  readonly id: string;
   readonly key: string;
   readonly ctrlKey?: boolean;
   readonly shiftKey?: boolean;

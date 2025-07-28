@@ -1,6 +1,7 @@
 // Enterprise keyboard shortcut system - similar to VS Code's keybinding system
 
 import type { KeyboardShortcut } from '../../types/ui';
+import { AnalyticsManager } from '../../core/analytics/AnalyticsManager.js';
 
 /**
  * Keyboard shortcut manager - singleton pattern
@@ -83,10 +84,19 @@ export class KeyboardShortcutManager {
         event.preventDefault();
         event.stopPropagation();
         
+        // Track keyboard shortcut usage
+        const analytics = AnalyticsManager.getInstance();
+        analytics.trackFeatureUsage('keyboard_shortcut', shortcut.id, {
+          key_combination: key,
+          description: shortcut.description
+        });
+        
         try {
           shortcut.action();
         } catch (error) {
           console.error('Error executing keyboard shortcut:', error);
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          analytics.trackError('keyboard_shortcut_error', errorMessage, shortcut.id);
         }
       }
     });
@@ -195,12 +205,14 @@ export class KeyboardShortcutManager {
 export const defaultShortcuts: KeyboardShortcut[] = [
   // File operations
   {
+    id: 'file.open',
     key: 'o',
     ctrlKey: true,
     description: 'File: Open file',
     action: () => console.log('Open file') // Will be replaced with actual implementation
   },
   {
+    id: 'file.save',
     key: 's',
     ctrlKey: true,
     description: 'File: Save content',
@@ -209,24 +221,28 @@ export const defaultShortcuts: KeyboardShortcut[] = [
   
   // Edit operations
   {
+    id: 'edit.copy',
     key: 'c',
     ctrlKey: true,
     description: 'Edit: Copy content',
     action: () => console.log('Copy content')
   },
   {
+    id: 'edit.paste',
     key: 'v',
     ctrlKey: true,
     description: 'Edit: Paste content',
     action: () => console.log('Paste content')
   },
   {
+    id: 'edit.select-all',
     key: 'a',
     ctrlKey: true,
     description: 'Edit: Select all',
     action: () => console.log('Select all')
   },
   {
+    id: 'edit.find',
     key: 'f',
     ctrlKey: true,
     description: 'Edit: Find in content',
@@ -235,30 +251,35 @@ export const defaultShortcuts: KeyboardShortcut[] = [
   
   // View operations
   {
+    id: 'view.refresh',
     key: 'r',
     ctrlKey: true,
     description: 'View: Refresh/reparse',
     action: () => console.log('Refresh content')
   },
   {
+    id: 'view.toggle-mode',
     key: 't',
     ctrlKey: true,
     description: 'View: Toggle render mode',
     action: () => console.log('Toggle render mode')
   },
   {
+    id: 'view.zoom-in',
     key: '=',
     ctrlKey: true,
     description: 'View: Zoom in',
     action: () => console.log('Zoom in')
   },
   {
+    id: 'view.zoom-out',
     key: '-',
     ctrlKey: true,
     description: 'View: Zoom out',
     action: () => console.log('Zoom out')
   },
   {
+    id: 'view.zoom-reset',
     key: '0',
     ctrlKey: true,
     description: 'View: Reset zoom',
@@ -267,11 +288,13 @@ export const defaultShortcuts: KeyboardShortcut[] = [
   
   // Help
   {
+    id: 'help.shortcuts',
     key: 'F1',
     description: 'Help: Show keyboard shortcuts',
     action: () => console.log('Show help')
   },
   {
+    id: 'help.quick-help',
     key: '?',
     ctrlKey: true,
     description: 'Help: Show quick help',
