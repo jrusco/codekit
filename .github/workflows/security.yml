@@ -10,6 +10,10 @@ on:
   # Also run on pushes to main
   push:
     branches: [main]
+  # Run on pull requests to main for security scanning
+  pull_request:
+    branches: [main]
+    paths: ['src/**', '*.ts', '*.js', 'package*.json', '.github/workflows/**']
 
 env:
   NODE_VERSION: '18'
@@ -30,7 +34,7 @@ jobs:
           cache: 'npm'
           
       - name: Install dependencies
-        run: npm ci
+        run: npm install --ignore-platform-reqs --production=false  # Platform-agnostic dependency installation
         
       # Check for known vulnerabilities in dependencies
       - name: Run npm audit
@@ -82,7 +86,7 @@ jobs:
           cache: 'npm'
           
       - name: Install dependencies
-        run: npm ci
+        run: npm install --ignore-platform-reqs --production=false  # Platform-agnostic dependency installation
         
       # Build the project
       - name: Build project
@@ -98,6 +102,8 @@ jobs:
   secrets-scan:
     name: 'Secrets Detection'
     runs-on: ubuntu-latest
+    # Skip secrets scanning on PRs for performance (run on push/schedule only)
+    if: github.event_name != 'pull_request'
     
     steps:
       - name: Checkout code

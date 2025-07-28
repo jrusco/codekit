@@ -1,0 +1,74 @@
+name: "CodeKit Security Configuration"
+
+# Disable default queries to use only security-focused ones
+disable-default-queries: false
+
+# Define custom query suites for comprehensive security analysis
+queries:
+  # Core security queries
+  - uses: security-and-quality
+  # Extended security analysis for enterprise compliance
+  - uses: security-extended
+  
+# Query filters to focus on security issues
+query-filters:
+  # Include all error-level security issues
+  - include:
+      problem.severity: error
+  # Include security-related warnings
+  - include:
+      problem.severity: warning
+      tags: security
+  # Include maintainability issues that could lead to security bugs
+  - include:
+      tags: maintainability
+      problem.severity: error
+
+# Paths to include in analysis
+paths:
+  - "src/**"
+  - "*.ts"
+  - "*.js"
+
+# Paths to exclude from analysis
+paths-ignore:
+  - "node_modules/**"
+  - "dist/**"
+  - "coverage/**"
+  - "*.test.ts"
+  - "*.spec.ts"
+  - "**/__tests__/**"
+  - "**/__mocks__/**"
+
+# Custom security rules for TypeScript/JavaScript
+rules:
+  # XSS Prevention
+  - id: "js/xss"
+    severity: "error"
+  # SQL Injection Prevention  
+  - id: "js/sql-injection"
+    severity: "error"
+  # Prototype Pollution Prevention
+  - id: "js/prototype-pollution"
+    severity: "error"
+  # Insecure Randomness
+  - id: "js/insecure-randomness"
+    severity: "warning"
+  # Hard-coded Credentials
+  - id: "js/hardcoded-credentials"
+    severity: "error"
+  # Unsafe Dynamic Code Execution
+  - id: "js/code-injection"
+    severity: "error"
+  # Path Traversal
+  - id: "js/path-injection"
+    severity: "error"
+  # CORS Misconfiguration
+  - id: "js/cors-misconfiguration"
+    severity: "warning"
+  # Insufficient Validation
+  - id: "js/insufficient-validation"
+    severity: "warning"
+  # Information Exposure
+  - id: "js/information-exposure"
+    severity: "warning"
