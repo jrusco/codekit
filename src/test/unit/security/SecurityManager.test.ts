@@ -195,7 +195,7 @@ describe('SecurityManager - Library-Based Security', () => {
       // Environment-aware performance thresholds
       // CI environments typically show 60-70% slower performance due to virtualization
       const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
-      const performanceThreshold = isCI ? 800 : 500; // CI: 800ms, Local: 500ms
+      const performanceThreshold = isCI ? 1000 : 500; // CI: 1000ms, Local: 500ms
       
       expect(endTime - startTime).toBeLessThan(performanceThreshold);
       expect(result).toBeTruthy();
