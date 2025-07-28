@@ -105,23 +105,6 @@ export class SecurityManager {
    * XSS sanitization - neutralize dangerous script content
    */
   private sanitizeXSS(input: string, context: string): string {
-    const dangerousPatterns = [
-      // Script tags
-      /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
-      // Event handlers
-      /\s*on\w+\s*=\s*['"'][^'"]*['"]/gi,
-      // JavaScript URLs
-      /javascript\s*:/gi,
-      // Data URLs with script
-      /data\s*:\s*text\/html/gi,
-      // Vbscript
-      /vbscript\s*:/gi,
-      // Expression in CSS
-      /expression\s*\(/gi,
-      // Import statements
-      /@import\s+['"]/gi
-    ];
-
     let sanitized = input;
 
     // For display contexts, escape rather than remove
@@ -134,9 +117,56 @@ export class SecurityManager {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#x27;');
     } else {
-      // For other contexts, remove dangerous patterns
-      dangerousPatterns.forEach(pattern => {
-        sanitized = sanitized.replace(pattern, '[SANITIZED]');
+      // For other contexts, comprehensively remove dangerous patterns
+      // Apply in specific order - most specific patterns first
+      const dangerousPatterns = [
+        // Complete dangerous HTML elements first (most specific)
+        { pattern: /<\s*script\b[^>]*>[\s\S]*?<\s*\/\s*script\s*>/gi, replacement: '' },
+        { pattern: /<\s*svg\b[^>]*>[\s\S]*?<\s*\/\s*svg\s*>/gi, replacement: '' },
+        { pattern: /<\s*iframe\b[^>]*>[\s\S]*?<\s*\/\s*iframe\s*>/gi, replacement: '' },
+        { pattern: /<\s*(object|embed)\b[^>]*>[\s\S]*?<\s*\/\s*(object|embed)\s*>/gi, replacement: '' },
+        
+        // Self-closing dangerous elements
+        { pattern: /<\s*script\b[^>]*\/\s*>/gi, replacement: '' },
+        { pattern: /<\s*svg\b[^>]*\/\s*>/gi, replacement: '' },
+        { pattern: /<\s*iframe\b[^>]*\/\s*>/gi, replacement: '' },
+        { pattern: /<\s*(object|embed)\b[^>]*\/\s*>/gi, replacement: '' },
+        
+        // Unclosed dangerous elements (any opening tag)
+        { pattern: /<\s*script\b[^>]*>/gi, replacement: '' },
+        { pattern: /<\s*svg\b[^>]*>/gi, replacement: '' },
+        { pattern: /<\s*iframe\b[^>]*>/gi, replacement: '' },
+        { pattern: /<\s*(object|embed)\b[^>]*>/gi, replacement: '' },
+        
+        // Event handlers - fixed duplicate character class  
+        { pattern: /\s*on\w+\s*=\s*["'][^"']*["']/gi, replacement: '' },
+        
+        // Dangerous URL protocols
+        { pattern: /javascript\s*:[^"'\s>]*/gi, replacement: '' },
+        { pattern: /vbscript\s*:[^"'\s>]*/gi, replacement: '' },
+        { pattern: /data\s*:\s*text\/html[^"'\s>]*/gi, replacement: '' },
+        { pattern: /data\s*:\s*[^,]*base64[^"'\s>]*/gi, replacement: '' },
+        
+        // CSS expressions
+        { pattern: /expression\s*\([^)]*\)/gi, replacement: '' },
+        
+        // Import statements
+        { pattern: /@import\s+['"][^'"]*['"]/gi, replacement: '' }
+      ];
+
+      dangerousPatterns.forEach(({ pattern, replacement }) => {
+        sanitized = sanitized.replace(pattern, replacement);
+      });
+      
+      // Additional cleanup for remaining dangerous keywords
+      const dangerousKeywords = [
+        'alert', 'confirm', 'prompt', 'eval', 'Function',
+        'setTimeout', 'setInterval', 'msgbox'
+      ];
+      
+      dangerousKeywords.forEach(keyword => {
+        const keywordPattern = new RegExp(`\\b${keyword}\\s*\\(`, 'gi');
+        sanitized = sanitized.replace(keywordPattern, '');
       });
     }
 
@@ -172,23 +202,20 @@ export class SecurityManager {
   private validateJSONForPrototypePollution(input: string): void {
     const dangerousKeys = ['__proto__', 'constructor', 'prototype'];
     
-    try {
-      // Check for dangerous keys in the raw string
-      const lowerInput = input.toLowerCase();
-      for (const key of dangerousKeys) {
-        if (lowerInput.includes(`"${key}"`)) {
-          throw new SecurityError(
-            'Potential prototype pollution detected in JSON input',
-            'PROTOTYPE_POLLUTION',
-            'Avoid using __proto__, constructor, or prototype keys in your JSON data'
-          );
-        }
+    // Check for dangerous keys in the raw string (case insensitive)
+    const lowerInput = input.toLowerCase();
+    for (const key of dangerousKeys) {
+      // Check for both quoted and unquoted versions
+      const quotedPattern = `"${key}"`;
+      const unquotedPattern = `\\b${key}\\b`;
+      
+      if (lowerInput.includes(quotedPattern) || new RegExp(unquotedPattern, 'i').test(input)) {
+        throw new SecurityError(
+          'Potential prototype pollution detected in JSON input',
+          'PROTOTYPE_POLLUTION',
+          'Avoid using __proto__, constructor, or prototype keys in your JSON data'
+        );
       }
-    } catch (error) {
-      if (error instanceof SecurityError) {
-        throw error;
-      }
-      // If JSON parsing fails, it's handled elsewhere
     }
   }
 
