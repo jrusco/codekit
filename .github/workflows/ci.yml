@@ -33,7 +33,7 @@ jobs:
         continue-on-error: true
         
       - name: Run tests with coverage
-        run: npm run test -- --coverage --watchAll=false
+        run: npm run test -- --coverage --run
         
       - name: Build production
         run: npm run build
