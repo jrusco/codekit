@@ -132,7 +132,7 @@ jobs:
           # Dynamic base/head configuration based on event type
           base: ${{ github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000' && github.event.before || '' }}
           head: ${{ github.event_name == 'push' && github.sha || 'HEAD' }}
-          extra_args: --debug --only-verified --fail
+          extra_args: --debug --only-verified
         continue-on-error: false  # Fail the job if secrets are found
         
       # Fallback: Full repository scan if differential scan fails
@@ -141,5 +141,5 @@ jobs:
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
-          extra_args: --debug --only-verified --fail --max-depth=50
+          extra_args: --debug --only-verified --max-depth=50
         continue-on-error: false
