@@ -19,7 +19,15 @@
     "lint": "eslint src --ext .ts,.tsx",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
     "format": "prettier --write src/**/*.{ts,tsx,css,html}",
-    "format:check": "prettier --check src/**/*.{ts,tsx,css,html}"
+    "format:check": "prettier --check src/**/*.{ts,tsx,css,html}",
+    "audit": "npm audit --audit-level=moderate",
+    "audit:fix": "npm audit fix",
+    "audit:security": "npm audit --audit-level=high --only=prod",
+    "deps:check": "npm outdated",
+    "deps:update": "npm update",
+    "security:check": "npm run audit:security && npm run deps:check",
+    "pretest": "npm run security:check",
+    "prebuild": "npm run security:check && npm run type-check"
   },
   "dependencies": {
     "dompurify": "^3.1.7",

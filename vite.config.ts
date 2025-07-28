@@ -46,10 +46,12 @@ export default defineConfig({
             './src/core/formatters/FormatRegistry.ts',
             './src/core/formatters/FormatDetector.ts'
           ],
-          // Security and analytics
+          // Security and analytics - including external security libraries
           security: [
             './src/core/security/SecurityManager.ts',
-            './src/core/security/CSPManager.ts'
+            './src/core/security/CSPManager.ts',
+            'dompurify',
+            'validator'
           ],
           analytics: [
             './src/core/analytics/AnalyticsManager.ts'
@@ -87,8 +89,8 @@ export default defineConfig({
         entryFileNames: 'assets/js/[name]-[hash].js'
       }
     },
-    // Optimize bundle size
-    chunkSizeWarningLimit: 1000,
+    // Optimize bundle size - increased limit for security libraries
+    chunkSizeWarningLimit: 1200,
     reportCompressedSize: true
   },
   

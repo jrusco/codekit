@@ -264,7 +264,6 @@ export class SecurityManager {
       }
     }
 
-    const dangerousKeys = ['__proto__', 'constructor', 'prototype'];
     const dangerousPatterns = [
       // Enhanced detection patterns for prototype pollution
       /"__proto__"\s*:/gi,
