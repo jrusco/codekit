@@ -39,7 +39,7 @@
     "vite": "^7.0.4",
     "vitest": "^3.2.4"
   },
-  "dependencies": {
+  "optionalDependencies": {
     "@rollup/rollup-win32-x64-msvc": "^4.45.1"
   }
 }
