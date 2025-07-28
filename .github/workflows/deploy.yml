@@ -33,7 +33,7 @@ jobs:
           cache: 'npm'
           
       - name: Install dependencies
-        run: npm install --ignore-platform-reqs --no-optional --production=false  # Platform-agnostic dependency installation
+        run: npm install --ignore-platform-reqs --production=false  # Install all deps, ignore Windows binaries
         
       - name: Run linting
         run: npm run lint || exit 0  # Allow warnings, continue build
