@@ -1,0 +1,67 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: '18'
+  CACHE_KEY: 'npm-deps'
+
+jobs:
+  quality-gate:
+    name: 'Quality Gate'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm' 
+
+      - name: Install dependencies
+        run: npm ci  # 'ci' is faster than 'install' for CI environments
+        
+      - name: Run ESLint
+        run: npm run lint
+        
+      - name: Run tests with coverage
+        run: npm run test -- --coverage --watchAll=false
+        
+      - name: Build production
+        run: npm run build
+        
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-files
+          path: dist/
+          retention-days: 7
+          
+  # Job 2: Type checking (TypeScript specific)
+  type-check:
+    name: 'TypeScript Type Check'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      # TypeScript compilation check
+      - name: Type check
+        run: npx tsc --noEmit  # Check types without generating files
