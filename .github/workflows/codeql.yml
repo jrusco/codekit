@@ -51,6 +51,18 @@ jobs:
       - name: Install dependencies
         run: npm install --ignore-platform-reqs --production=false  # Platform-agnostic dependency installation
         
+      # Run security audit (non-blocking)
+      - name: Security audit check
+        run: |
+          echo "Running dependency security audit..."
+          npm audit --audit-level=high --only=prod || echo "Security audit completed with warnings"
+          
+      # Check for outdated dependencies (informational only)
+      - name: Check dependency status
+        run: |
+          echo "Checking dependency status..."
+          npm outdated || echo "Dependency status check completed"
+        
       # Build the project for comprehensive analysis
       - name: Build project
         run: npm run build
