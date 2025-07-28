@@ -21,7 +21,12 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
-    exclude: ['**/src/test/playwright/**']
+    exclude: [
+      '**/node_modules/**',
+      '**/src/test/playwright/**',
+      '**/dist/**',
+      '**/coverage/**'
+    ]
   },
   
   build: {
@@ -29,13 +34,7 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true
-      }
-    },
+    minify: 'esbuild',
     rollupOptions: {
       output: {
         manualChunks: {
